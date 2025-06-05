@@ -275,7 +275,7 @@
             cases, a GPL licencse can have "classpath" exceptions, like usually for Oracle
             libraries: https://glassfish.java.net/public/CDDL+GPL_1_1.html For each library
             you want to add, add a comment regarding its used license. -->
-        <dependencies>
+        <dependencies>	
             <dependency>
                 <groupId>com.sun.xml.bind</groupId>
                 <artifactId>jaxb-core</artifactId>
@@ -847,4 +847,11 @@
 
     </properties>
 
+    <dependencies>
+    	<dependency>
+    		<groupId>com.github.javaparser</groupId>
+    		<artifactId>javaparser-symbol-solver-core</artifactId>
+    		<version>3.18.0</version>
+    	</dependency>
+    </dependencies>
 </project>
