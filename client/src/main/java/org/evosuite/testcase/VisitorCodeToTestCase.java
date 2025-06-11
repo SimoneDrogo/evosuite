@@ -12,11 +12,14 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.VariableDeclarator;
+import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.stmt.AssertStmt;
 import com.github.javaparser.ast.stmt.BlockStmt;
+import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.visitor.VoidVisitor;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 
+import org.evosuite.symbolic.TestCaseBuilder;
 import org.evosuite.testcase.statements.*;
 
 
@@ -54,27 +57,91 @@ public class VisitorCodeToTestCase {
 		  VoidVisitor<List<MethodDeclaration>> methodNameCollector = new MethodCollector();
 		  methodNameCollector.visit(cu, methods);
 		  
+		  VoidVisitor<List<VariableDeclarator>> variableCollector = new VariableDeclaratorCollector();
+		  
 		  List<TestCase> evoTestCases = new ArrayList<>();
 		  
 		  for (MethodDeclaration md : methods) {
 			    
-			  TestCase test = new DefaultTestCase();
-			  
-			  
-			  
-			  
-			 
-			  
-			  
-			  
-			  evoTestCases.add(test);
-			  
-			  
-			}
-		  
-		  
-		 
-		  
-	  }
+			    List<VariableDeclarator> declarations = new ArrayList<>();
+			    variableCollector.visit(md, declarations);
 
+			    // Creo un nuovo TestCase per ogni metodo (poi puoi decidere come modularlo)
+			    DefaultTestCase testCase = new DefaultTestCase();
+			    TestCaseBuilder builder = new TestCaseBuilder(testCase, 0);
+
+			    for (VariableDeclarator vd : declarations) {
+			        
+			        Expression expr = vd.getInitializer().get();
+			        
+			        // Verifica che abbia un inizializzatore (per ora gestiamo solo variabili inizializzate)
+			        if (vd.getInitializer().isPresent()) {
+			            String initializer = expr.toString();
+			            
+			            if (expr.isIntegerLiteralExpr()) {
+			                
+			                try {
+			                    int intValue = Integer.parseInt(initializer);	                	
+			                    builder.appendIntPrimitive(intValue);
+			                } catch (NumberFormatException e) {
+			                    System.out.println("Valore int non parsabile: " + initializer);
+			                }
+			            }
+			            
+			            if (expr.isBooleanLiteralExpr()) {
+			            	boolean boolValue = Boolean.parseBoolean(initializer);
+			                builder.appendBooleanPrimitive(boolValue);
+			            }
+			            
+			            
+			            if (expr.isCharLiteralExpr()) {
+			            	
+			            	char charValue = initializer.charAt(1);
+			            	builder.appendCharPrimitive(charValue);
+			            	
+			            }
+			            
+			            if (expr.isStringLiteralExpr()) {
+			            	builder.appendStringPrimitive(initializer.substring(1, initializer.length() -1));
+			            }
+			            
+			            if (vd.getType().toString().equals("float")) {
+			            	
+			            	float floatValue = Float.parseFloat(initializer);
+			            	builder.appendFloatPrimitive(floatValue);  //capire perchè lo fa doppio (parsa sia il float che il doouble o l'int)
+			            	
+			            }
+			            
+			            if (expr.isDoubleLiteralExpr()){
+			            	double doubleValue = Double.parseDouble(initializer);
+			            	builder.appendDoublePrimitive(doubleValue);
+			            }
+			            
+			            if (vd.getType().toString().equals("byte")) {
+			            	
+			            	byte byteValue = Byte.parseByte(initializer);
+			            	builder.appendBytePrimitive(byteValue);  //stesso problema del float parsa sia il double che l'int
+			            }
+			            
+			            if (expr.isClassExpr()) {
+			            	
+			            	Class<?> classValue = expr.getClass();
+			            	builder.appendClassPrimitive(classValue);
+			            }
+			            
+			            
+			            
+			            
+			        }
+			        
+			    }
+
+			    evoTestCases.add(testCase);
+			    System.out.println("Creato TestCase: \n" + testCase);
+			}
+
+			System.out.print(evoTestCases);
+	}
+	
 }
+
