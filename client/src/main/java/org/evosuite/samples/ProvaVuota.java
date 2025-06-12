@@ -12,16 +12,23 @@ public class ProvaVuota {
 		boolean x = false;
 		boolean y = true;
 		int z = 1;
+		int f = 2;
 		String prova = "prova";
 		double d = 3.675989;
 		
-		TestCaseBuilder fantasiaAlPotere = null;
+		int g = z+f;
+		
+		int non;
+		
+		Class<?> clazz = String.class;
+		
 		
 
 	}
 	
 	
-	@Test void testBar() {
+	@Test 
+	public void testBar() {
 		
 		boolean a = true;
 		boolean b = false;
@@ -32,6 +39,16 @@ public class ProvaVuota {
 		String provalunga = "è una stringa più lunga";
 		
 		byte morso = 6;
+		
+		
+		Class<?> clazz1 = Math.class;
+		Class<?> clazz2 = provalunga.getClass();
+		
+		Math strano = null;
+		
+		int[] pazzia = null;
+		
+		
 	}
 
 }
