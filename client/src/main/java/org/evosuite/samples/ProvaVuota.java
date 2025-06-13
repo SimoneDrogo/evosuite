@@ -1,5 +1,7 @@
 package org.evosuite.samples;
 
+import java.util.List;
+
 import org.evosuite.symbolic.TestCaseBuilder;
 import org.junit.Test;
 
@@ -22,6 +24,9 @@ public class ProvaVuota {
 		
 		Class<?> clazz = String.class;
 		
+		int[] array = null;
+		
+		int[][] vettore = new int[1][2];
 		
 
 	}
@@ -46,7 +51,9 @@ public class ProvaVuota {
 		
 		Math strano = null;
 		
-		int[] pazzia = null;
+		Integer pazzia = null;
+		
+		List<String> lista  = null;
 		
 		
 	}

@@ -1,4 +1,4 @@
-package org.evosuite.testcase;
+package org.evosuite.testcase.javapareser;
 
 import java.util.HashMap;
 
