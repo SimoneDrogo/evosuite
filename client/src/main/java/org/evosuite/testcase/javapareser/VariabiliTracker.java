@@ -2,22 +2,24 @@ package org.evosuite.testcase.javapareser;
 
 import java.util.HashMap;
 
+import org.evosuite.testcase.variable.VariableReference;
+
 public class VariabiliTracker {
-    private HashMap<String, String> variabili;
+    private HashMap<String, VariableReference> variabili;
 
     public VariabiliTracker() {
         variabili = new HashMap<>();
     }
 
     // Aggiunge una variabile, ma segnala errore se il nome esiste già
-    public void aggiungiVariabile(String nome, String tipo) {
+    public void aggiungiVariabile(String nome, VariableReference variable) {
         if (variabili.containsKey(nome)) {
             throw new IllegalArgumentException("La variabile '" + nome + "' è già stata dichiarata.");
         }
-        variabili.put(nome, tipo);
+        variabili.put(nome, variable);
     }
 
-    public String getTipo(String nome) {
+    public VariableReference getRefernce(String nome) {
         return variabili.get(nome);
     }
 
@@ -26,4 +28,11 @@ public class VariabiliTracker {
             System.out.println(nome + " -> " + variabili.get(nome));
         }
     }
+    
+    public boolean contiene (String nome) {
+    	
+    	
+    	return variabili.containsKey(nome);
+    }
+    
 }

@@ -28,6 +28,12 @@ public class ProvaVuota {
 		
 		int[][] vettore = new int[1][2];
 		
+		double pi = Math.PI;
+		
+		FieldProva provaFiled = new FieldProva();
+		
+		int risposta = provaFiled.ANSWER;
+		
 
 	}
 	
@@ -54,6 +60,9 @@ public class ProvaVuota {
 		Integer pazzia = null;
 		
 		List<String> lista  = null;
+		
+		String[][][] vettoreStringa = new String[7][12][36];
+		
 		
 		
 	}
