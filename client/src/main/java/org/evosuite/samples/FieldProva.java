@@ -5,9 +5,13 @@ public class FieldProva {
 	
 	private int x;
 	
+	private double y;
 	
-	public FieldProva(int x) {
+	public FieldProva(int x, double y) {
+		
 		 this.x = x;
+		 
+		 this.y = y;
 		
 	}
 	

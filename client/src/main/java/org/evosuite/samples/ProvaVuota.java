@@ -1,5 +1,8 @@
 package org.evosuite.samples;
 
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -9,8 +12,22 @@ import org.junit.Test;
 
 public class ProvaVuota {
 	
+	enum  Day {lunedi, martedi, mercoledi, giovedi, venerdi, sabato, domenica};
+	
+	private static final String FILE_PATH = "src/main/java/org/evosuite/samples/ProvaVuota.java";
+	
 	@Test
     public void testFoo() {
+		
+		
+		
+		
+		File file = new File(FILE_PATH);
+		
+		
+		
+		Day giorno = Day.lunedi;
+		
 		
 		boolean x = false;
 		boolean y = true;
@@ -33,11 +50,11 @@ public class ProvaVuota {
 		
 		double pi = Math.PI;
 		
-		FieldProva provaField = new FieldProva(z);
+		FieldProva provaField = new FieldProva(f, pi);
 		
 		int risposta = FieldProva.ANSWER;
 		
-		//int domanda = provaField.question;
+		int domanda = provaField.question;
 		
 
 	}
@@ -50,11 +67,11 @@ public class ProvaVuota {
 		boolean b = false;
 		char c = 'c';
 		
-		float f = 3.0F;
+		 //float eee = 3.0F;
 		
 		String provalunga = "è una stringa più lunga";
 		
-		byte morso = 6;
+		//byte morse = 6;
 		
 		
 		Class<?> clazz1 = Math.class;

@@ -118,24 +118,63 @@ public class VisitorCodeToTestCase {
 				parametersVr[i] = vr;
 				
 				ResolvedType paramType = resolved.getParam(i).getType();
-				String qualifiedNameParam ="";
+				String className = "";
 
 				if (paramType.isPrimitive()) {
-				    qualifiedNameParam = paramType.describe();
-				   
-				} else if (paramType.isReferenceType()) {
-				    qualifiedNameParam = paramType.asReferenceType().getQualifiedName(); // es: "com.example.MyClass"
+				    String simpleName = paramType.describe();
+				    if (simpleName.equals("int")) {
+				        className = "int";
+				    } else if (simpleName.equals("boolean")) {
+				        className = "boolean";
+				    } else if (simpleName.equals("double")) {
+				        className = "double";
+				    } else if (simpleName.equals("long")) {
+				        className = "long";
+				    } else if (simpleName.equals("char")) {
+				        className = "char";
+				    } else if (simpleName.equals("float")) {
+				        className = "float";
+				    } else if (simpleName.equals("short")) {
+				        className = "short";
+				    } else if (simpleName.equals("byte")) {
+				        className = "byte";
+				    } else {
+				        throw new IllegalArgumentException("Tipo primitivo non gestito: " + simpleName);
+				    }
 				} else {
-				    throw new RuntimeException("Tipo non gestito: " + paramType.describe());
-				}
-
-				try {
-					paramTypes.add(Class.forName(qualifiedNameParam));
-				} catch (ClassNotFoundException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
+				    className = paramType.asReferenceType().getQualifiedName();
 				}
 				
+				Class<?> clazzParam = null;
+				
+				if (className.equals("int")) {
+				    clazzParam = int.class;
+				} else if (className.equals("boolean")) {
+					clazzParam = boolean.class;
+				} else if (className.equals("double")) {
+					clazzParam = double.class;
+				} else if (className.equals("long")) {
+					clazzParam = long.class;
+				} else if (className.equals("char")) {
+					clazzParam = char.class;
+				} else if (className.equals("float")) {
+					clazzParam = float.class;
+				} else if (className.equals("short")) {
+					clazzParam = short.class;
+				} else if (className.equals("byte")) {
+					clazzParam = byte.class;
+				} else {
+				    try {
+						clazzParam = Class.forName(className);
+					} catch (ClassNotFoundException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
+
+				
+				paramTypes.add(clazzParam);
+			
 				i++;
 				
 			}
@@ -149,7 +188,9 @@ public class VisitorCodeToTestCase {
 				e.printStackTrace();
 			}
 			
-			context.getBuilder().appendConstructor(constructor, parametersVr);
+			VariableReference vr = context.getBuilder().appendConstructor(constructor, parametersVr);
+			
+			context.getTracker().aggiungiVariabile(context.getVariableName(),vr);
 			
 			
 			
@@ -241,7 +282,7 @@ public class VisitorCodeToTestCase {
 		  public void visit(VariableDeclarator vd, VisitorContext context) {
 				super.visit(vd, context);
 				
-				ObjecctCreationVisitor constructorVisitor = new ObjecctCreationVisitor();
+				ObjecctCreationVisitor objectCreationVisitor = new ObjecctCreationVisitor();
 				
 				
 				
@@ -250,6 +291,8 @@ public class VisitorCodeToTestCase {
 		        	
 		        	Expression expr = vd.getInitializer().get();
 		            String initializer = expr.toString();
+		            String name = vd.getNameAsString();
+		            
 		            
 		            if (expr.isIntegerLiteralExpr()) {
 		                
@@ -258,7 +301,7 @@ public class VisitorCodeToTestCase {
 		                    
 		                    VariableReference vr = context.getBuilder().appendIntPrimitive(intValue);
 		                    
-		                    String name = vr.getName();
+		                    
 		                    
 		                    context.getTracker().aggiungiVariabile(name, vr);
 
@@ -272,9 +315,12 @@ public class VisitorCodeToTestCase {
 		            if (expr.isBooleanLiteralExpr()) {
 		            	boolean boolValue = Boolean.parseBoolean(initializer);
 		            	
+		            	
+		            	
+		            	
 		            	VariableReference vr = context.getBuilder().appendBooleanPrimitive(boolValue);
 	                    
-	                    String name = vr.getName();
+	                    
 	                    
 	                    context.getTracker().aggiungiVariabile(name, vr);
 
@@ -287,7 +333,7 @@ public class VisitorCodeToTestCase {
 		            	char charValue = initializer.charAt(1);
 		            	VariableReference vr = context.getBuilder().appendCharPrimitive(charValue);
 	                    
-	                    String name = vr.getName();
+	                    
 	                    
 	                    context.getTracker().aggiungiVariabile(name, vr);
 
@@ -299,7 +345,7 @@ public class VisitorCodeToTestCase {
 		            	
 		            	VariableReference vr = context.getBuilder().appendStringPrimitive(initializer.substring(1, initializer.length() -1));
 	                    
-	                    String name = vr.getName();
+	                   
 	                    
 	                    context.getTracker().aggiungiVariabile(name, vr);
 
@@ -314,7 +360,7 @@ public class VisitorCodeToTestCase {
 		            	
 		            	VariableReference vr = context.getBuilder().appendFloatPrimitive(floatValue);
 	                    
-	                    String name = vr.getName();
+	                    
 	                    
 	                    context.getTracker().aggiungiVariabile(name, vr);
 
@@ -327,7 +373,6 @@ public class VisitorCodeToTestCase {
 		            	
 		            	VariableReference vr = context.getBuilder().appendDoublePrimitive(doubleValue);
 	                    
-	                    String name = vr.getName();
 	                    
 	                    context.getTracker().aggiungiVariabile(name, vr);
 
@@ -340,7 +385,6 @@ public class VisitorCodeToTestCase {
 		            	
 		            	VariableReference vr = context.getBuilder().appendBytePrimitive(byteValue);
 	                    
-	                    String name = vr.getName();
 	                    
 	                    context.getTracker().aggiungiVariabile(name, vr);
 
@@ -364,7 +408,7 @@ public class VisitorCodeToTestCase {
 		            	
 						VariableReference vr = context.getBuilder().appendClassPrimitive(clazz);
 	                    
-	                    String name = vr.getName();
+	                    
 	                    
 	                    context.getTracker().aggiungiVariabile(name, vr);
 
@@ -386,7 +430,6 @@ public class VisitorCodeToTestCase {
 
 		                VariableReference vr = context.getBuilder().appendNull(typeForEvoSuite);
 	                    
-	                    String name = vr.getName();
 	                    
 	                    context.getTracker().aggiungiVariabile(name, vr);
 
@@ -401,30 +444,40 @@ public class VisitorCodeToTestCase {
 		                try {
 		                    ResolvedValueDeclaration resolvedField = fieldAccessExpr.resolve();
 
-		                    if (resolvedField.isField() && resolvedField.asField().isStatic()) {
+		                    if (resolvedField.isField()) {
 		                        ResolvedFieldDeclaration resolvedFieldDecl = resolvedField.asField();
 
 		                        try {
 		                            Class<?> declaringClass = Class.forName(resolvedFieldDecl.declaringType().getQualifiedName());
 		                            Field javaField = declaringClass.getField(resolvedFieldDecl.getName());
-
+		                           
+		                            if (resolvedField.asField().isStatic()) {
 		                            VariableReference vr = context.getBuilder().appendStaticFieldStmt(javaField);
-		                            
-		                            if (vr == null) {
-		                                System.err.println("appendStaticFieldStmt ha restituito null per campo: " + javaField);
-		                                return;
-		                            }
-
-		                            String name = vr.getName();
-		                            if (name == null) {
-		                                System.err.println("Il nome della variabile è null per campo: " + javaField);
-		                                return;
-		                            }
-
 		                            context.getTracker().aggiungiVariabile(name, vr);
+		                            }
+		                            else {
+		                            	
+		                            	Expression scope = fieldAccessExpr.getScope();
+		                            	
+		                            	String variableName = "";
 
-		                            System.out.print(name);
-		                            System.out.print(javaField);
+		                            	if (scope.isNameExpr()) {
+		                            	    variableName = scope.asNameExpr().getNameAsString();
+		                            	} else if (scope.isFieldAccessExpr()) {
+		                            	    // per accessi concatenati tipo: this.foo.bar
+		                            	    variableName = scope.asFieldAccessExpr().toString(); 
+		                            	} else {
+		                            	    variableName = scope.toString(); // fallback
+		                            	}
+		                            	
+		                            	VariableReference vrReciver = context.getTracker().getRefernce(variableName);
+		                            	
+		                            	
+		                            	VariableReference vr = context.getBuilder().appendFieldStmt(vrReciver, javaField);
+			                            context.getTracker().aggiungiVariabile(name, vr);
+	
+		                            }
+
 
 		                        } catch (ClassNotFoundException | NoSuchFieldException e) {
 		                            //System.err.println("Errore nel riflettere sul campo: " + resolvedFieldDecl.getQualifiedName());
@@ -432,6 +485,9 @@ public class VisitorCodeToTestCase {
 		                        }
 
 		                    }
+		                    
+		                    
+		                    
 		                } catch (UnsolvedSymbolException e) {
 		                    //System.err.println("Errore nel risolvere FieldAccessExpr: " + fieldAccessExpr);
 		                    e.printStackTrace();
@@ -441,9 +497,15 @@ public class VisitorCodeToTestCase {
 		            
 		            if (expr.isObjectCreationExpr()) {
 		            	
-		            	constructorVisitor.visit(vd, context); 	
+		            	context.setVariableName(name);
+		            	
+		            	objectCreationVisitor.visit(vd, context);
+		            	
+		            	context.setVariableName("");
 		            }
-
+		            
+		            
+		            if ()
 		            
 		            
 		            
@@ -508,7 +570,7 @@ public class VisitorCodeToTestCase {
 				
 				VariableDeclaratorVisitor variableVisitor = new VariableDeclaratorVisitor();
 				ArrayCreationExprVisitor arrayVisitor = new ArrayCreationExprVisitor();
-				ObjecctCreationVisitor constructorVisitor = new ObjecctCreationVisitor();
+				
 				
 				
 			    
@@ -518,7 +580,6 @@ public class VisitorCodeToTestCase {
 
 				variableVisitor.visit(md, context);
 				arrayVisitor.visit(md, context);
-				
 				
 				
 				

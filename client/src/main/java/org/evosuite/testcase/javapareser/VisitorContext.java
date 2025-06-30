@@ -6,6 +6,7 @@ public class VisitorContext {
     private final MethodDeclaration methodUnderTest;
     private final TestCaseBuilder builder;
     private final VariabiliTracker tracker;
+    private String variableName;
 
     public VisitorContext(MethodDeclaration methodUnderTest, TestCaseBuilder builder) {
         this.methodUnderTest = methodUnderTest;
@@ -23,6 +24,17 @@ public class VisitorContext {
 
     public VariabiliTracker getTracker() {
         return tracker;
+    }
+    
+    public String getVariableName() {
+    	
+    	return this.variableName;
+    }
+    
+    public void setVariableName(String name) {
+    	
+    	this.variableName = name;
+    	
     }
 }
 
