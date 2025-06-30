@@ -2,6 +2,7 @@ package org.evosuite.testcase.javapareser;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -15,18 +16,24 @@ import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.ArrayCreationLevel;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
+import com.github.javaparser.ast.NodeList;
+import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.EnumDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.ArrayCreationExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
+import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.stmt.AssertStmt;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.type.ArrayType;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.visitor.VoidVisitor;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
+import com.github.javaparser.resolution.UnsolvedSymbolException;
+import com.github.javaparser.resolution.declarations.ResolvedConstructorDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedFieldDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedValueDeclaration;
 import com.github.javaparser.resolution.types.ResolvedType;
@@ -40,6 +47,7 @@ import org.evosuite.testcase.DefaultTestCase;
 import org.evosuite.testcase.TestCase;
 import org.evosuite.symbolic.vm.math.EXP;
 import org.evosuite.testcase.statements.*;
+import org.evosuite.testcase.variable.ArrayReference;
 import org.evosuite.testcase.variable.VariableReference;
 import org.evosuite.testcase.variable.VariableReferenceImpl;
 
@@ -68,12 +76,95 @@ public class VisitorCodeToTestCase {
         }
     }
 	
+	
+	private static class ObjecctCreationVisitor extends VoidVisitorAdapter <VisitorContext> {
+		
+		@Override
+		public void visit (ObjectCreationExpr oc, VisitorContext context) {
+			
+			super.visit(oc, context);
+			
+			System.out.println("Sono arrivato al visit");
+			
+			NodeList<Expression> parameters = oc.getArguments();
+			
+			ResolvedConstructorDeclaration resolved = oc.resolve(); 
+			
+			String qualifiedName = oc.resolve().declaringType().getQualifiedName();
+			
+			VariableReference[] parametersVr = new VariableReference[resolved.getNumberOfParams()];
+			
+			Class<?> clazz = null;
+			
+			try {
+				clazz = Class.forName(qualifiedName);
+
+			} catch (ClassNotFoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+
+			List<Class<?>> paramTypes = new ArrayList<>();
+			
+			int i = 0;
+			
+			for (Expression parameter : parameters) {
+				
+				System.out.println("Sono arrivato al for");
+				
+				
+				
+				VariableReference vr = context.getTracker().getRefernce(parameter.asNameExpr().getNameAsString());			
+				parametersVr[i] = vr;
+				
+				ResolvedType paramType = resolved.getParam(i).getType();
+				String qualifiedNameParam ="";
+
+				if (paramType.isPrimitive()) {
+				    qualifiedNameParam = paramType.describe();
+				   
+				} else if (paramType.isReferenceType()) {
+				    qualifiedNameParam = paramType.asReferenceType().getQualifiedName(); // es: "com.example.MyClass"
+				} else {
+				    throw new RuntimeException("Tipo non gestito: " + paramType.describe());
+				}
+
+				try {
+					paramTypes.add(Class.forName(qualifiedNameParam));
+				} catch (ClassNotFoundException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				
+				i++;
+				
+			}
+			
+			Constructor<?> constructor = null;
+			
+			try {
+				constructor = clazz.getDeclaredConstructor(paramTypes.toArray(new Class<?>[0]));
+			} catch (NoSuchMethodException | SecurityException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+			context.getBuilder().appendConstructor(constructor, parametersVr);
+			
+			
+			
+			
+		}
+	}
+	
 
 	private static class ArrayCreationLevelVisitor extends VoidVisitorAdapter <ArrayList<Integer>> {
 	
 		
 		@Override
 		public void visit(ArrayCreationLevel acl, ArrayList<Integer> lengths) {
+			
+			super.visit(acl, lengths);
 			
 			int length = Integer.parseInt(acl.getDimension().get().toString());
 			
@@ -133,7 +224,12 @@ public class VisitorCodeToTestCase {
 		        arrayPrimitivi[i] = Integer.parseInt(arrayOggetti[i].toString());
 		    }
 		    
-		    context.getBuilder().appendArrayStmt(typeForEvoSuite, arrayPrimitivi);
+		    ArrayReference ar = context.getBuilder().appendArrayStmt(typeForEvoSuite, arrayPrimitivi);
+		    
+		    String name = ar.getName();	
+		    
+		    context.getTracker().aggiungiVariabile(name, ar);
+		    
 		}
 
 	}
@@ -144,6 +240,8 @@ public class VisitorCodeToTestCase {
 		  @Override
 		  public void visit(VariableDeclarator vd, VisitorContext context) {
 				super.visit(vd, context);
+				
+				ObjecctCreationVisitor constructorVisitor = new ObjecctCreationVisitor();
 				
 				
 				
@@ -297,41 +395,55 @@ public class VisitorCodeToTestCase {
 		            
 		            if (expr.isFieldAccessExpr()) {
 		                FieldAccessExpr fieldAccessExpr = expr.asFieldAccessExpr();
+		                
+		                
+		                
 		                try {
-		                    // Usa il resolver per ottenere il simbolo del campo
-		                   ResolvedValueDeclaration resolvedField = fieldAccessExpr.resolve();
+		                    ResolvedValueDeclaration resolvedField = fieldAccessExpr.resolve();
 
-		                    if (resolvedField.isField()) {
-		                        // Ottieni info sul campo
-		                         ResolvedFieldDeclaration resolvedFieldDecl =
-		                            resolvedField.asField();
+		                    if (resolvedField.isField() && resolvedField.asField().isStatic()) {
+		                        ResolvedFieldDeclaration resolvedFieldDecl = resolvedField.asField();
 
-		                        // Ottieni il tipo che lo dichiara
-		                        Class<?> declaringClass = Class.forName(resolvedFieldDecl.declaringType().getQualifiedName());
+		                        try {
+		                            Class<?> declaringClass = Class.forName(resolvedFieldDecl.declaringType().getQualifiedName());
+		                            Field javaField = declaringClass.getField(resolvedFieldDecl.getName());
 
-		                        // Ottieni il Field riflessivo
-		                        Field javaField = declaringClass.getField(resolvedFieldDecl.getName());
+		                            VariableReference vr = context.getBuilder().appendStaticFieldStmt(javaField);
+		                            
+		                            if (vr == null) {
+		                                System.err.println("appendStaticFieldStmt ha restituito null per campo: " + javaField);
+		                                return;
+		                            }
 
-		                      
-		                        
-		                        
-		                        VariableReference vr = context.getBuilder().appendStaticFieldStmt(javaField);
-			                    
-			                    String name = vr.getName();
-			                    
-			                    context.getTracker().aggiungiVariabile(name, vr);
+		                            String name = vr.getName();
+		                            if (name == null) {
+		                                System.err.println("Il nome della variabile è null per campo: " + javaField);
+		                                return;
+		                            }
 
-			                    System.out.print(name);
-		                        
-		                        
+		                            context.getTracker().aggiungiVariabile(name, vr);
+
+		                            System.out.print(name);
+		                            System.out.print(javaField);
+
+		                        } catch (ClassNotFoundException | NoSuchFieldException e) {
+		                            //System.err.println("Errore nel riflettere sul campo: " + resolvedFieldDecl.getQualifiedName());
+		                            e.printStackTrace();
+		                        }
+
 		                    }
-
-		                } catch (Exception e) {
+		                } catch (UnsolvedSymbolException e) {
+		                    //System.err.println("Errore nel risolvere FieldAccessExpr: " + fieldAccessExpr);
 		                    e.printStackTrace();
 		                }
-		                
-		               
 		            }
+		            
+		            
+		            if (expr.isObjectCreationExpr()) {
+		            	
+		            	constructorVisitor.visit(vd, context); 	
+		            }
+
 		            
 		            
 		            
@@ -343,32 +455,31 @@ public class VisitorCodeToTestCase {
 		    	  
 		    	  String type = vd.getType().toString();
 
-		    	    switch (type) {
-		    	        case "int":
-		    	            context.getBuilder().appendIntPrimitive(0);
-		    	            break;
-		    	        case "boolean":
-		    	        	context.getBuilder().appendBooleanPrimitive(false);
-		    	            break;
-		    	        case "char":
-		    	        	context.getBuilder().appendCharPrimitive('\0');
-		    	            break;
-		    	        case "String":
-		    	        	context.getBuilder().appendStringPrimitive(null);
-		    	            break;
-		    	        case "float":
-		    	        	context.getBuilder().appendFloatPrimitive(0.0f);
-		    	            break;
-		    	        case "double":
-		    	        	context.getBuilder().appendDoublePrimitive(0.0);
-		    	            break;
-		    	        case "byte":
-		    	        	context.getBuilder().appendBytePrimitive((byte) 0);
-		    	            break;
-		    	        default:
-		    	            System.out.println("Tipo non gestito: " + type);
-		    	            break;
-		    	    }
+		    	  VariableReference vr;
+
+		    	  if (type.equals("int")) {
+		    	      vr = context.getBuilder().appendIntPrimitive(0);
+		    	  } else if (type.equals("boolean")) {
+		    	      vr = context.getBuilder().appendBooleanPrimitive(false);
+		    	  } else if (type.equals("char")) {
+		    	      vr = context.getBuilder().appendCharPrimitive('\0');
+		    	  } else if (type.equals("String")) {
+		    	      vr = context.getBuilder().appendStringPrimitive(null);
+		    	  } else if (type.equals("float")) {
+		    	      vr = context.getBuilder().appendFloatPrimitive(0.0f);
+		    	  } else if (type.equals("double")) {
+		    	      vr = context.getBuilder().appendDoublePrimitive(0.0);
+		    	  } else if (type.equals("byte")) {
+		    	      vr = context.getBuilder().appendBytePrimitive((byte) 0);
+		    	  } else {
+		    	      System.out.println("Tipo non gestito: " + type);
+		    	      vr = null;
+		    	  }
+
+		    	  if (vr != null) {
+		    	      String name = vr.getName();
+		    	      context.getTracker().aggiungiVariabile(name, vr);
+		    	  }
 		    	  
 		    	  
 		    	  
@@ -377,10 +488,10 @@ public class VisitorCodeToTestCase {
 	}
 	
 	
-	private static class EnumVisitor extends VoidVisitorAdapter  <TestCaseBuilder> {
+	private static class EnumVisitor extends VoidVisitorAdapter <VisitorContext> {
 		
 		@Override
-		public void visit (EnumDeclaration ed, TestCaseBuilder builder) {
+		public void visit (EnumDeclaration ed, VisitorContext context) {
 			
 			
 			
@@ -397,6 +508,8 @@ public class VisitorCodeToTestCase {
 				
 				VariableDeclaratorVisitor variableVisitor = new VariableDeclaratorVisitor();
 				ArrayCreationExprVisitor arrayVisitor = new ArrayCreationExprVisitor();
+				ObjecctCreationVisitor constructorVisitor = new ObjecctCreationVisitor();
+				
 				
 			    
 			    DefaultTestCase testCase = new DefaultTestCase();
@@ -405,6 +518,7 @@ public class VisitorCodeToTestCase {
 
 				variableVisitor.visit(md, context);
 				arrayVisitor.visit(md, context);
+				
 				
 				
 				
@@ -421,7 +535,7 @@ public class VisitorCodeToTestCase {
 	    CombinedTypeSolver typeSolver = new CombinedTypeSolver();
 	    typeSolver.add(new ReflectionTypeSolver());
 	    
-	   String sourcePath = "src/main/java/org/evosuite/samples/FieldProva.java";
+	   String sourcePath = "src/main/java";
 	   String jarLibsPath = "";
 	   
 	   

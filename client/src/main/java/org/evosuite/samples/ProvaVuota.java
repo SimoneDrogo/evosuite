@@ -1,5 +1,6 @@
 package org.evosuite.samples;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.evosuite.symbolic.TestCaseBuilder;
@@ -24,15 +25,19 @@ public class ProvaVuota {
 		
 		Class<?> clazz = String.class;
 		
+		Class<?> clazz1 = FieldProva.class;
+		
 		int[] array = null;
 		
 		int[][] vettore = new int[1][2];
 		
 		double pi = Math.PI;
 		
-		FieldProva provaFiled = new FieldProva();
+		FieldProva provaField = new FieldProva(z);
 		
-		int risposta = provaFiled.ANSWER;
+		int risposta = FieldProva.ANSWER;
+		
+		//int domanda = provaField.question;
 		
 
 	}
@@ -56,6 +61,8 @@ public class ProvaVuota {
 		Class<?> clazz2 = provalunga.getClass();
 		
 		Math strano = null;
+		
+		
 		
 		Integer pazzia = null;
 		
