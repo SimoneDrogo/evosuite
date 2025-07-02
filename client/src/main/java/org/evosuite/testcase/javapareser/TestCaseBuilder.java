@@ -127,7 +127,7 @@ public class TestCaseBuilder {
         return primitiveStmt.getReturnValue();
     }
 
-    public void appendAssignment(VariableReference receiver, Field field,
+    public void appendAssignment(VariableReference receiver, Field field, 
                                  VariableReference value) {
         FieldReference fieldReference;
 

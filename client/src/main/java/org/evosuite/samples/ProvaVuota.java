@@ -14,7 +14,7 @@ public class ProvaVuota {
 	
 	enum  Day {lunedi, martedi, mercoledi, giovedi, venerdi, sabato, domenica};
 	
-	private static final String FILE_PATH = "src/main/java/org/evosuite/samples/ProvaVuota.java";
+	private static final String FILE_PATH = "src/main/java/org/evosuite/samples/FieldProva.java";
 	
 	@Test
     public void testFoo() {
@@ -22,11 +22,11 @@ public class ProvaVuota {
 		
 		
 		
-		File file = new File(FILE_PATH);
+		//File file = new File(FILE_PATH);
 		
 		
 		
-		Day giorno = Day.lunedi;
+		//Day giorno = Day.lunedi;
 		
 		
 		boolean x = false;
@@ -56,7 +56,13 @@ public class ProvaVuota {
 		
 		int domanda = provaField.question;
 		
-
+		provaField.question = z;
+		
+		Field2 var = new Field2();
+		
+		provaField.question = var.x;
+		
+		
 	}
 	
 	

@@ -16,5 +16,5 @@ public class FieldProva {
 	}
 	
 	public static final int ANSWER = 42;
-	public final int question = 420;
+	public  int question = 420;
 }

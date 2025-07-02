@@ -23,6 +23,7 @@ import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.ArrayCreationExpr;
+import com.github.javaparser.ast.expr.AssignExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
@@ -75,6 +76,112 @@ public class VisitorCodeToTestCase {
             System.out.println("JAR folder does not exist or is not a directory: " + jarFolder.getAbsolutePath());
         }
     }
+	
+	
+	private static Field getFieldByExpression (FieldAccessExpr fieldAccessExpr) {
+		
+                	ResolvedValueDeclaration resolvedField = fieldAccessExpr.resolve();
+
+                    ResolvedFieldDeclaration resolvedFieldDecl = resolvedField.asField();
+
+                    Class<?> declaringClass = null;
+					try {
+						declaringClass = Class.forName(resolvedFieldDecl.declaringType().getQualifiedName());
+					} catch (ClassNotFoundException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+                    Field javaField = null;
+					try {
+						javaField = declaringClass.getField(resolvedFieldDecl.getName());
+					} catch (NoSuchFieldException | SecurityException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+                    
+                    return javaField;
+
+	}
+	
+	private static VariableReference getReferenceByExpression (FieldAccessExpr fieldAccessExpr, VisitorContext context) {
+		
+		Expression scope = fieldAccessExpr.getScope();
+    	
+    	String variableName = "";
+
+    	if (scope.isNameExpr()) {
+    	    variableName = scope.asNameExpr().getNameAsString();
+    	} else if (scope.isFieldAccessExpr()) {
+    	    // per accessi concatenati tipo: this.foo.bar
+    	    variableName = scope.asFieldAccessExpr().toString(); 
+    	} else {
+    	    variableName = scope.toString(); // fallback
+    	}
+    	
+    	VariableReference vrReciver = context.getTracker().getRefernce(variableName);
+    	
+    	return vrReciver;
+		
+		
+	}
+	
+	
+	
+	private static class AssignExprVisitor extends VoidVisitorAdapter <VisitorContext> {
+		
+		@Override
+		public void visit (AssignExpr ae, VisitorContext context) {
+			
+			super.visit(ae, context);
+			
+			Expression target = ae.getTarget();
+			
+			String varName = "";
+
+	        if (target.isNameExpr()) {
+	            varName = target.asNameExpr().getNameAsString();
+	            
+	        } else if (target.isFieldAccessExpr()) {
+	        	
+	        	
+	        	FieldAccessExpr fieldAccessExpr = ae.getTarget().asFieldAccessExpr();
+	        	
+	        	Field javaField = getFieldByExpression(fieldAccessExpr);
+                
+                
+            	VariableReference vrReciver = getReferenceByExpression(fieldAccessExpr, context);
+            	
+            	if (ae.getValue().isNameExpr()) {
+            		
+	            	VariableReference vrValue = context.getTracker().getRefernce(ae.getValue().asNameExpr().getNameAsString());
+	                            	
+	            	context.getBuilder().appendAssignment(vrReciver, javaField, vrValue);
+            	}
+            	
+            	else if (ae.getValue().isFieldAccessExpr()) {
+            		
+            		FieldAccessExpr fieldAccessExprSrc = ae.getValue().asFieldAccessExpr();
+            		
+            		Field javaFieldSrc = getFieldByExpression(fieldAccessExprSrc);
+            		
+            		VariableReference vrSrc = getReferenceByExpression(fieldAccessExprSrc, context);
+            		
+            		context.getBuilder().appendAssignment(vrReciver, javaField, vrSrc, javaFieldSrc);
+            		
+            	}
+  
+	           
+	        }
+	        
+	       
+	        
+	        VariableReference vrReciver = context.getTracker().getRefernce(varName);
+			
+
+		}
+		
+	}
+	
 	
 	
 	private static class ObjecctCreationVisitor extends VoidVisitorAdapter <VisitorContext> {
@@ -217,8 +324,6 @@ public class VisitorCodeToTestCase {
 	}
 	
 
-	
-	
 	
 	private static class ArrayCreationExprVisitor extends VoidVisitorAdapter <VisitorContext> {
 		
@@ -437,61 +542,29 @@ public class VisitorCodeToTestCase {
 		            }
 		            
 		            if (expr.isFieldAccessExpr()) {
+		            	
+		            	
 		                FieldAccessExpr fieldAccessExpr = expr.asFieldAccessExpr();
 		                
-		                
-		                
-		                try {
-		                    ResolvedValueDeclaration resolvedField = fieldAccessExpr.resolve();
-
-		                    if (resolvedField.isField()) {
-		                        ResolvedFieldDeclaration resolvedFieldDecl = resolvedField.asField();
-
-		                        try {
-		                            Class<?> declaringClass = Class.forName(resolvedFieldDecl.declaringType().getQualifiedName());
-		                            Field javaField = declaringClass.getField(resolvedFieldDecl.getName());
+		                Field javaField = getFieldByExpression(fieldAccessExpr);
 		                           
-		                            if (resolvedField.asField().isStatic()) {
-		                            VariableReference vr = context.getBuilder().appendStaticFieldStmt(javaField);
+	                            if (fieldAccessExpr.resolve().asField().isStatic()) {
+	                            	
+	                            VariableReference vr = context.getBuilder().appendStaticFieldStmt(javaField);
+	                            context.getTracker().aggiungiVariabile(name, vr);
+	                            
+	                            }
+	                            else {
+	                            	
+	                           
+	                            	VariableReference vrReciver = getReferenceByExpression(fieldAccessExpr, context);
+	                            	
+	                            	
+	                            	VariableReference vr = context.getBuilder().appendFieldStmt(vrReciver, javaField);
 		                            context.getTracker().aggiungiVariabile(name, vr);
-		                            }
-		                            else {
-		                            	
-		                            	Expression scope = fieldAccessExpr.getScope();
-		                            	
-		                            	String variableName = "";
 
-		                            	if (scope.isNameExpr()) {
-		                            	    variableName = scope.asNameExpr().getNameAsString();
-		                            	} else if (scope.isFieldAccessExpr()) {
-		                            	    // per accessi concatenati tipo: this.foo.bar
-		                            	    variableName = scope.asFieldAccessExpr().toString(); 
-		                            	} else {
-		                            	    variableName = scope.toString(); // fallback
-		                            	}
-		                            	
-		                            	VariableReference vrReciver = context.getTracker().getRefernce(variableName);
-		                            	
-		                            	
-		                            	VariableReference vr = context.getBuilder().appendFieldStmt(vrReciver, javaField);
-			                            context.getTracker().aggiungiVariabile(name, vr);
-	
-		                            }
+	                            }
 
-
-		                        } catch (ClassNotFoundException | NoSuchFieldException e) {
-		                            //System.err.println("Errore nel riflettere sul campo: " + resolvedFieldDecl.getQualifiedName());
-		                            e.printStackTrace();
-		                        }
-
-		                    }
-		                    
-		                    
-		                    
-		                } catch (UnsolvedSymbolException e) {
-		                    //System.err.println("Errore nel risolvere FieldAccessExpr: " + fieldAccessExpr);
-		                    e.printStackTrace();
-		                }
 		            }
 		            
 		            
@@ -503,15 +576,8 @@ public class VisitorCodeToTestCase {
 		            	
 		            	context.setVariableName("");
 		            }
+		        }
 		            
-		            
-		            if ()
-		            
-		            
-		            
-					
-			  }
-		        
 		      else {
 		    	  
 		    	  
@@ -570,6 +636,7 @@ public class VisitorCodeToTestCase {
 				
 				VariableDeclaratorVisitor variableVisitor = new VariableDeclaratorVisitor();
 				ArrayCreationExprVisitor arrayVisitor = new ArrayCreationExprVisitor();
+				AssignExprVisitor assignVisitor = new AssignExprVisitor();
 				
 				
 				
@@ -580,6 +647,7 @@ public class VisitorCodeToTestCase {
 
 				variableVisitor.visit(md, context);
 				arrayVisitor.visit(md, context);
+				assignVisitor.visit(md, context);
 				
 				
 				
