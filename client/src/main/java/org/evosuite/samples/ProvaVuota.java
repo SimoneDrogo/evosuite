@@ -22,7 +22,7 @@ public class ProvaVuota {
 		
 		
 		
-		//File file = new File(FILE_PATH);
+		File file = new File("src/main/java/org/evosuite/samples/FieldProva.java");
 		
 		
 		
@@ -44,7 +44,11 @@ public class ProvaVuota {
 		
 		Class<?> clazz1 = FieldProva.class;
 		
-		int[] array = null;
+		int[] array = new int[5];
+		
+		array[1] = z;
+		
+		f = array[1];
 		
 		int[][] vettore = new int[1][2];
 		

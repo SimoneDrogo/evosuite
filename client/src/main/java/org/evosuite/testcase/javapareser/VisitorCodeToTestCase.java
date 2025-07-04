@@ -1,5 +1,7 @@
 package org.evosuite.testcase.javapareser;
 
+import static org.mockito.ArgumentMatchers.intThat;
+
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -27,6 +29,7 @@ import com.github.javaparser.ast.expr.AssignExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
+import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.ast.stmt.AssertStmt;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.type.ArrayType;
@@ -46,6 +49,7 @@ import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeS
 
 import org.evosuite.testcase.DefaultTestCase;
 import org.evosuite.testcase.TestCase;
+import org.evosuite.runtime.testdata.EvoSuiteFile;
 import org.evosuite.symbolic.vm.math.EXP;
 import org.evosuite.testcase.statements.*;
 import org.evosuite.testcase.variable.ArrayReference;
@@ -126,6 +130,147 @@ public class VisitorCodeToTestCase {
 	}
 	
 	
+	private static class ObjectCreationVisitor extends VoidVisitorAdapter<VisitorContext> {
+
+	    @Override
+	    public void visit(ObjectCreationExpr oc, VisitorContext context) {
+	        super.visit(oc, context);
+
+	        
+
+	        if (oc.getType().getNameAsString().equals("File")) {
+	            if (!oc.getArguments().isEmpty()) {
+	                Expression arg = oc.getArgument(0);
+
+	                if (arg.isStringLiteralExpr()) {
+	                    StringLiteralExpr strExpr = arg.asStringLiteralExpr();
+	                    String path = strExpr.getValue();
+	                    System.out.println("Percorso del file: " + path);
+
+	                    EvoSuiteFile file = new EvoSuiteFile(path);
+	                    context.getBuilder().appendFileNamePrimitive(file);
+	                }
+	            }
+	        } else {
+	        	
+	        	
+	        	System.out.println("Sono arrivato al visit");
+
+		        ResolvedConstructorDeclaration resolved = oc.resolve();
+		        String qualifiedName = resolved.declaringType().getQualifiedName();
+
+		        Class<?> clazz = null;
+
+		        try {
+		            clazz = Class.forName(qualifiedName);
+		        } catch (ClassNotFoundException e) {
+		            e.printStackTrace();
+		        }
+	        	
+	            NodeList<Expression> parameters = oc.getArguments();
+	            VariableReference[] parametersVr = new VariableReference[resolved.getNumberOfParams()];
+	            List<Class<?>> paramTypes = new ArrayList<>();
+
+	            int i = 0;
+	            for (Expression parameter : parameters) {
+	                System.out.println("Sono arrivato al for");
+
+	                VariableReference vr = context.getTracker().getRefernce(parameter.asNameExpr().getNameAsString());
+	                parametersVr[i] = vr;
+
+	                ResolvedType paramType = resolved.getParam(i).getType();
+	                String className = "";
+
+	                if (paramType.isPrimitive()) {
+	                    String simpleName = paramType.describe();
+	                    switch (simpleName) {
+	                        case "int":
+	                            className = "int";
+	                            break;
+	                        case "boolean":
+	                            className = "boolean";
+	                            break;
+	                        case "double":
+	                            className = "double";
+	                            break;
+	                        case "long":
+	                            className = "long";
+	                            break;
+	                        case "char":
+	                            className = "char";
+	                            break;
+	                        case "float":
+	                            className = "float";
+	                            break;
+	                        case "short":
+	                            className = "short";
+	                            break;
+	                        case "byte":
+	                            className = "byte";
+	                            break;
+	                        default:
+	                            throw new IllegalArgumentException("Tipo primitivo non gestito: " + simpleName);
+	                    }
+	                } else {
+	                    className = paramType.asReferenceType().getQualifiedName();
+	                }
+
+	                Class<?> clazzParam = null;
+
+	                switch (className) {
+	                    case "int":
+	                        clazzParam = int.class;
+	                        break;
+	                    case "boolean":
+	                        clazzParam = boolean.class;
+	                        break;
+	                    case "double":
+	                        clazzParam = double.class;
+	                        break;
+	                    case "long":
+	                        clazzParam = long.class;
+	                        break;
+	                    case "char":
+	                        clazzParam = char.class;
+	                        break;
+	                    case "float":
+	                        clazzParam = float.class;
+	                        break;
+	                    case "short":
+	                        clazzParam = short.class;
+	                        break;
+	                    case "byte":
+	                        clazzParam = byte.class;
+	                        break;
+	                    default:
+	                        try {
+	                            clazzParam = Class.forName(className);
+	                        } catch (ClassNotFoundException e) {
+	                            e.printStackTrace();
+	                        }
+	                        break;
+	                }
+
+	                paramTypes.add(clazzParam);
+	                i++;
+	            }
+
+	            Constructor<?> constructor = null;
+
+	            try {
+	                constructor = clazz.getDeclaredConstructor(paramTypes.toArray(new Class<?>[0]));
+	            } catch (NoSuchMethodException | SecurityException e) {
+	                e.printStackTrace();
+	            }
+
+	            VariableReference vr = context.getBuilder().appendConstructor(constructor, parametersVr);
+	            context.getTracker().aggiungiVariabile(context.getVariableName(), vr);
+	        }
+	    }
+	}
+
+	
+	
 	
 	private static class AssignExprVisitor extends VoidVisitorAdapter <VisitorContext> {
 		
@@ -173,9 +318,42 @@ public class VisitorCodeToTestCase {
 	           
 	        }
 	        
-	       
+	        else if (ae.getTarget().isArrayAccessExpr()) {
+	        	
+	        	String arrayName = ae.getTarget().asArrayAccessExpr().getName().toString();
+	        	
+	        	System.out.println(arrayName);
+	        	
+	        	ArrayReference ar = (ArrayReference) context.getTracker().getRefernce(arrayName);
+	        	
+	        	int index = Integer.parseInt(ae.getTarget().asArrayAccessExpr().getIndex().toString());
+	        	
+	        	if (ae.getValue().isNameExpr()) {
+	        		
+	        		String varNameReciver = ae.getValue().asNameExpr().getNameAsString();
+	        		
+	        		VariableReference vrReciver = context.getTracker().getRefernce(varNameReciver);
+	        		 
+	        		context.getBuilder().appendAssignment(ar, index, vrReciver); 
+	        		 		
+	        		
+	        	}
+	        	
+	        	
+	        }
 	        
 	        VariableReference vrReciver = context.getTracker().getRefernce(varName);
+	        
+	        if(ae.getValue().isArrayAccessExpr()) {
+	        	
+	        	String arrayName = ae.getValue().asArrayAccessExpr().getName().toString();
+	        	
+	        	ArrayReference ar = (ArrayReference) context.getTracker().getRefernce(arrayName);
+	        	
+	        	int index = Integer.parseInt(ae.getValue().asArrayAccessExpr().getIndex().toString());
+	        	
+	        	context.getBuilder().appendAssignment(vrReciver, ar, index);
+	        }
 			
 
 		}
@@ -184,126 +362,7 @@ public class VisitorCodeToTestCase {
 	
 	
 	
-	private static class ObjecctCreationVisitor extends VoidVisitorAdapter <VisitorContext> {
-		
-		@Override
-		public void visit (ObjectCreationExpr oc, VisitorContext context) {
-			
-			super.visit(oc, context);
-			
-			System.out.println("Sono arrivato al visit");
-			
-			NodeList<Expression> parameters = oc.getArguments();
-			
-			ResolvedConstructorDeclaration resolved = oc.resolve(); 
-			
-			String qualifiedName = oc.resolve().declaringType().getQualifiedName();
-			
-			VariableReference[] parametersVr = new VariableReference[resolved.getNumberOfParams()];
-			
-			Class<?> clazz = null;
-			
-			try {
-				clazz = Class.forName(qualifiedName);
-
-			} catch (ClassNotFoundException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-
-			List<Class<?>> paramTypes = new ArrayList<>();
-			
-			int i = 0;
-			
-			for (Expression parameter : parameters) {
-				
-				System.out.println("Sono arrivato al for");
-				
-				
-				
-				VariableReference vr = context.getTracker().getRefernce(parameter.asNameExpr().getNameAsString());			
-				parametersVr[i] = vr;
-				
-				ResolvedType paramType = resolved.getParam(i).getType();
-				String className = "";
-
-				if (paramType.isPrimitive()) {
-				    String simpleName = paramType.describe();
-				    if (simpleName.equals("int")) {
-				        className = "int";
-				    } else if (simpleName.equals("boolean")) {
-				        className = "boolean";
-				    } else if (simpleName.equals("double")) {
-				        className = "double";
-				    } else if (simpleName.equals("long")) {
-				        className = "long";
-				    } else if (simpleName.equals("char")) {
-				        className = "char";
-				    } else if (simpleName.equals("float")) {
-				        className = "float";
-				    } else if (simpleName.equals("short")) {
-				        className = "short";
-				    } else if (simpleName.equals("byte")) {
-				        className = "byte";
-				    } else {
-				        throw new IllegalArgumentException("Tipo primitivo non gestito: " + simpleName);
-				    }
-				} else {
-				    className = paramType.asReferenceType().getQualifiedName();
-				}
-				
-				Class<?> clazzParam = null;
-				
-				if (className.equals("int")) {
-				    clazzParam = int.class;
-				} else if (className.equals("boolean")) {
-					clazzParam = boolean.class;
-				} else if (className.equals("double")) {
-					clazzParam = double.class;
-				} else if (className.equals("long")) {
-					clazzParam = long.class;
-				} else if (className.equals("char")) {
-					clazzParam = char.class;
-				} else if (className.equals("float")) {
-					clazzParam = float.class;
-				} else if (className.equals("short")) {
-					clazzParam = short.class;
-				} else if (className.equals("byte")) {
-					clazzParam = byte.class;
-				} else {
-				    try {
-						clazzParam = Class.forName(className);
-					} catch (ClassNotFoundException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-				}
-
-				
-				paramTypes.add(clazzParam);
-			
-				i++;
-				
-			}
-			
-			Constructor<?> constructor = null;
-			
-			try {
-				constructor = clazz.getDeclaredConstructor(paramTypes.toArray(new Class<?>[0]));
-			} catch (NoSuchMethodException | SecurityException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			
-			VariableReference vr = context.getBuilder().appendConstructor(constructor, parametersVr);
-			
-			context.getTracker().aggiungiVariabile(context.getVariableName(),vr);
-			
-			
-			
-			
-		}
-	}
+	
 	
 
 	private static class ArrayCreationLevelVisitor extends VoidVisitorAdapter <ArrayList<Integer>> {
@@ -372,7 +431,7 @@ public class VisitorCodeToTestCase {
 		    
 		    ArrayReference ar = context.getBuilder().appendArrayStmt(typeForEvoSuite, arrayPrimitivi);
 		    
-		    String name = ar.getName();	
+		    String name = context.getVariableName();	
 		    
 		    context.getTracker().aggiungiVariabile(name, ar);
 		    
@@ -387,7 +446,9 @@ public class VisitorCodeToTestCase {
 		  public void visit(VariableDeclarator vd, VisitorContext context) {
 				super.visit(vd, context);
 				
-				ObjecctCreationVisitor objectCreationVisitor = new ObjecctCreationVisitor();
+				ObjectCreationVisitor objectCreationVisitor = new ObjectCreationVisitor();
+				
+				ArrayCreationExprVisitor arrayVisitor = new ArrayCreationExprVisitor();
 				
 				
 				
@@ -568,6 +629,18 @@ public class VisitorCodeToTestCase {
 		            }
 		            
 		            
+		            if (expr.isArrayCreationExpr()) {
+		            	
+		            	context.setVariableName(name);
+		            	
+		            	arrayVisitor.visit(vd, context);
+		            	
+		            	context.setVariableName("");
+		            	
+		            	
+		            }
+		            
+		            
 		            if (expr.isObjectCreationExpr()) {
 		            	
 		            	context.setVariableName(name);
@@ -635,7 +708,7 @@ public class VisitorCodeToTestCase {
 				super.visit(md, collector);
 				
 				VariableDeclaratorVisitor variableVisitor = new VariableDeclaratorVisitor();
-				ArrayCreationExprVisitor arrayVisitor = new ArrayCreationExprVisitor();
+				
 				AssignExprVisitor assignVisitor = new AssignExprVisitor();
 				
 				
@@ -646,7 +719,7 @@ public class VisitorCodeToTestCase {
 			    VisitorContext context = new VisitorContext(md, builder);
 
 				variableVisitor.visit(md, context);
-				arrayVisitor.visit(md, context);
+				
 				assignVisitor.visit(md, context);
 				
 				
