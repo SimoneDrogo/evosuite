@@ -19,11 +19,11 @@
  */
 package org.evosuite.strategy;
 
-import org.evosuite.ProgressMonitor;
 import org.evosuite.Properties;
 import org.evosuite.TestGenerationContext;
 import org.evosuite.coverage.FitnessFunctionsUtils;
 import org.evosuite.coverage.TestFitnessFactory;
+import org.evosuite.coverage.dataflow.analysis.ProgressMonitor;
 import org.evosuite.ga.stoppingconditions.*;
 import org.evosuite.graphs.cfg.CFGMethodAdapter;
 import org.evosuite.instrumentation.InstrumentingClassLoader;

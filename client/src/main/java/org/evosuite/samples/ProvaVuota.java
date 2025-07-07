@@ -66,6 +66,12 @@ public class ProvaVuota {
 		
 		provaField.question = var.x;
 		
+		int doppio = provaField.doubleInt(risposta);
+		
+		provaField.factorY(d);
+		
+		Math.sqrt(pi);
+		
 		
 	}
 	

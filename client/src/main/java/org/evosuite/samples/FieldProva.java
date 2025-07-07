@@ -15,6 +15,16 @@ public class FieldProva {
 		
 	}
 	
+	public int doubleInt (int n) {
+		
+		return 2*n;
+	}
+	
+	public void factorY (double factor) {
+		
+		this.y = y * factor;
+	}
+	
 	public static final int ANSWER = 42;
 	public  int question = 420;
 }

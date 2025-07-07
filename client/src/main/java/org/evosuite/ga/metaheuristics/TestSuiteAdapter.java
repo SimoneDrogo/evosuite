@@ -19,8 +19,8 @@
  */
 package org.evosuite.ga.metaheuristics;
 
-import org.evosuite.ProgressMonitor;
 import org.evosuite.ShutdownTestWriter;
+import org.evosuite.coverage.dataflow.analysis.ProgressMonitor;
 import org.evosuite.ga.*;
 import org.evosuite.ga.bloatcontrol.BloatControlFunction;
 import org.evosuite.ga.bloatcontrol.MaxSizeBloatControl;

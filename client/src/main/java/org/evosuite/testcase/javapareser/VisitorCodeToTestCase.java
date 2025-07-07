@@ -6,6 +6,7 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -28,6 +29,7 @@ import com.github.javaparser.ast.expr.ArrayCreationExpr;
 import com.github.javaparser.ast.expr.AssignExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
+import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.ast.stmt.AssertStmt;
@@ -39,6 +41,7 @@ import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import com.github.javaparser.resolution.UnsolvedSymbolException;
 import com.github.javaparser.resolution.declarations.ResolvedConstructorDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedFieldDeclaration;
+import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedValueDeclaration;
 import com.github.javaparser.resolution.types.ResolvedType;
 import com.github.javaparser.symbolsolver.JavaSymbolSolver;
@@ -130,6 +133,166 @@ public class VisitorCodeToTestCase {
 	}
 	
 	
+	
+	private static class MethodCallExprVisitor extends VoidVisitorAdapter<VisitorContext> {
+		
+		
+		@Override
+	    public void visit(MethodCallExpr mce, VisitorContext context) {
+			
+			super.visit(mce, context);
+			
+			Optional<Expression> scopeOpt = mce.getScope();
+	    	
+	    	String variableName = "";
+	    	
+	    	VariableReference vrReciver;
+	    	
+	    	
+	    	if (scopeOpt.isPresent()) {
+	    		
+	         Expression scope = scopeOpt.get();
+
+	    	if (scope.isNameExpr()) {
+	    	    variableName = scope.asNameExpr().getNameAsString();
+	    	} else {
+	    	    variableName = scope.toString(); // fallback
+	    	}
+	    	
+	    	 vrReciver = context.getTracker().getRefernce(variableName);
+	    	
+	    	}
+	    	else {
+	    		
+	    		 vrReciver = null;
+	    		
+	    	}
+	    	
+	    	ResolvedMethodDeclaration resolved = mce.resolve();
+	        String qualifiedName = resolved.declaringType().getQualifiedName();
+
+	        Class<?> clazz = null;
+
+	        try {
+	            clazz = Class.forName(qualifiedName);
+	        } catch (ClassNotFoundException e) {
+	            e.printStackTrace();
+	        }
+	        
+	        
+	        NodeList<Expression> parameters = mce.getArguments();
+            VariableReference[] parametersVr = new VariableReference[resolved.getNumberOfParams()];
+            List<Class<?>> paramTypes = new ArrayList<>();
+            
+            int i = 0;
+            for (Expression parameter : parameters) {
+                
+
+                VariableReference vr = context.getTracker().getRefernce(parameter.asNameExpr().getNameAsString());
+                parametersVr[i] = vr;
+
+                ResolvedType paramType = resolved.getParam(i).getType();
+                String className = "";
+
+                if (paramType.isPrimitive()) {
+                    String simpleName = paramType.describe();
+                    switch (simpleName) {
+                        case "int":
+                            className = "int";
+                            break;
+                        case "boolean":
+                            className = "boolean";
+                            break;
+                        case "double":
+                            className = "double";
+                            break;
+                        case "long":
+                            className = "long";
+                            break;
+                        case "char":
+                            className = "char";
+                            break;
+                        case "float":
+                            className = "float";
+                            break;
+                        case "short":
+                            className = "short";
+                            break;
+                        case "byte":
+                            className = "byte";
+                            break;
+                        default:
+                            throw new IllegalArgumentException("Tipo primitivo non gestito: " + simpleName);
+                    }
+                } else {
+                    className = paramType.asReferenceType().getQualifiedName();
+                }
+
+                Class<?> clazzParam = null;
+
+                switch (className) {
+                    case "int":
+                        clazzParam = int.class;
+                        break;
+                    case "boolean":
+                        clazzParam = boolean.class;
+                        break;
+                    case "double":
+                        clazzParam = double.class;
+                        break;
+                    case "long":
+                        clazzParam = long.class;
+                        break;
+                    case "char":
+                        clazzParam = char.class;
+                        break;
+                    case "float":
+                        clazzParam = float.class;
+                        break;
+                    case "short":
+                        clazzParam = short.class;
+                        break;
+                    case "byte":
+                        clazzParam = byte.class;
+                        break;
+                    default:
+                        try {
+                            clazzParam = Class.forName(className);
+                        } catch (ClassNotFoundException e) {
+                            e.printStackTrace();
+                        }
+                        break;
+                }
+
+                paramTypes.add(clazzParam);
+                i++;
+            }
+            
+            
+            Method method = null;
+            
+            
+            try {
+				method = clazz.getMethod(mce.getNameAsString(), paramTypes.toArray(new Class<?> [0]) );
+			} catch (NoSuchMethodException | SecurityException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+            
+            VariableReference vr = context.getBuilder().appendMethod(vrReciver, method, parametersVr);
+            
+            //context.getTracker().aggiungiVariabile(null, vr);
+	        
+	
+		}
+		
+		
+	}
+	
+	
+	
+	
+	
 	private static class ObjectCreationVisitor extends VoidVisitorAdapter<VisitorContext> {
 
 	    @Override
@@ -154,7 +317,7 @@ public class VisitorCodeToTestCase {
 	        } else {
 	        	
 	        	
-	        	System.out.println("Sono arrivato al visit");
+	        	
 
 		        ResolvedConstructorDeclaration resolved = oc.resolve();
 		        String qualifiedName = resolved.declaringType().getQualifiedName();
@@ -173,7 +336,7 @@ public class VisitorCodeToTestCase {
 
 	            int i = 0;
 	            for (Expression parameter : parameters) {
-	                System.out.println("Sono arrivato al for");
+	                
 
 	                VariableReference vr = context.getTracker().getRefernce(parameter.asNameExpr().getNameAsString());
 	                parametersVr[i] = vr;
@@ -711,6 +874,8 @@ public class VisitorCodeToTestCase {
 				
 				AssignExprVisitor assignVisitor = new AssignExprVisitor();
 				
+				MethodCallExprVisitor callVisitor = new MethodCallExprVisitor();
+				
 				
 				
 			    
@@ -721,6 +886,8 @@ public class VisitorCodeToTestCase {
 				variableVisitor.visit(md, context);
 				
 				assignVisitor.visit(md, context);
+				
+				callVisitor.visit(md, context);
 				
 				
 				
@@ -737,9 +904,9 @@ public class VisitorCodeToTestCase {
 	    CombinedTypeSolver typeSolver = new CombinedTypeSolver();
 	    typeSolver.add(new ReflectionTypeSolver());
 	    
-	   String sourcePath = "src/main/java";
-	   String jarLibsPath = "";
-	   
+	    String sourcePath = "src/main/java";
+		String jarLibsPath = "";
+		   
 	   
 	    //Mio codice sorgente
 	    typeSolver.add(new JavaParserTypeSolver(new File(sourcePath)));

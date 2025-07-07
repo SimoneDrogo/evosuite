@@ -19,10 +19,10 @@
  */
 package org.evosuite.ga.metaheuristics;
 
-import org.evosuite.ProgressMonitor;
 import org.evosuite.Properties;
 import org.evosuite.Properties.Criterion;
 import org.evosuite.coverage.branch.BranchCoverageSuiteFitness;
+import org.evosuite.coverage.dataflow.analysis.ProgressMonitor;
 import org.evosuite.ga.ChromosomeFactory;
 import org.evosuite.ga.ConstructionFailedException;
 import org.evosuite.ga.FitnessFunction;
