@@ -36,7 +36,7 @@ public class ProvaVuota {
 		String prova = "prova";
 		double d = 3.675989;
 		
-		int g = z+f;
+		int g = 4;
 		
 		int non;
 		
@@ -53,6 +53,10 @@ public class ProvaVuota {
 		int[][] vettore = new int[1][2];
 		
 		double pi = Math.PI;
+		
+		FieldProva catena = new FieldProva(f, g);
+		
+		catena.getField2().getY();
 		
 		FieldProva provaField = new FieldProva(f, pi);
 		
@@ -83,11 +87,11 @@ public class ProvaVuota {
 		boolean b = false;
 		char c = 'c';
 		
-		 //float eee = 3.0F;
+		 float eee = 3.0F;
 		
 		String provalunga = "è una stringa più lunga";
 		
-		//byte morse = 6;
+		byte morse = 6;
 		
 		
 		Class<?> clazz1 = Math.class;

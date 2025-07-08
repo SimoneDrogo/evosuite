@@ -61,7 +61,7 @@ import org.evosuite.testcase.variable.VariableReferenceImpl;
 
 public class VisitorCodeToTestCase {
 	
-	private static final String FILE_PATH = "src/main/java/org/evosuite/samples/ProvaVuota.java";
+	private static final String FILE_PATH = "src/main/java/org/evosuite/samples/BankAccountManager_ESTest.java";
 	
 	
 	public static void addJarsFromFolder(CombinedTypeSolver typeSolver, File jarFolder) {
@@ -83,6 +83,146 @@ public class VisitorCodeToTestCase {
             System.out.println("JAR folder does not exist or is not a directory: " + jarFolder.getAbsolutePath());
         }
     }
+	
+	
+	private static VariableReference appendPrimitiveStmt (Expression expr, VisitorContext context) {
+		
+		if (expr.isIntegerLiteralExpr()) {
+        	
+        	
+                int intValue = Integer.parseInt(expr.toString());
+                
+                VariableReference vr = context.getBuilder().appendIntPrimitive(intValue);
+                
+                return vr;
+                
+        }
+        
+        if (expr.isBooleanLiteralExpr()) {
+        	boolean boolValue = Boolean.parseBoolean(expr.toString());
+        	
+        	
+        	VariableReference vr = context.getBuilder().appendBooleanPrimitive(boolValue);
+            
+            return vr;
+            
+        }
+        
+        
+        if (expr.isCharLiteralExpr()) {
+        	
+        	char charValue = expr.toString().charAt(1);
+        	VariableReference vr = context.getBuilder().appendCharPrimitive(charValue);
+            
+           return vr; 
+
+        }
+        
+        if (expr.isStringLiteralExpr()) {
+        	
+        	VariableReference vr = context.getBuilder().appendStringPrimitive(expr.toString().substring(1, expr.toString().length() -1));
+            
+           
+            return vr;
+             
+        }
+        
+        
+        
+        if (expr.isDoubleLiteralExpr()){
+        	
+        	
+
+        	double doubleValue = Double.parseDouble(expr.toString());
+        	
+        	VariableReference vr = context.getBuilder().appendDoublePrimitive(doubleValue);
+            
+            
+            return vr;
+            
+        	
+        }
+        
+        
+        
+        if (expr.isClassExpr()) {
+        	
+
+        	String qualifiedName = expr.asClassExpr().getType().resolve().describe();
+        	
+
+        	// ora puoi fare
+        	Class<?> clazz = null;
+			try {
+				clazz = Class.forName(qualifiedName);
+			} catch (ClassNotFoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+        	
+			VariableReference vr = context.getBuilder().appendClassPrimitive(clazz);
+            
+            
+            return vr;
+            
+        	
+        }
+        
+        
+        
+        if (expr.isFieldAccessExpr()) {
+        	
+        	
+            FieldAccessExpr fieldAccessExpr = expr.asFieldAccessExpr();
+            
+            Field javaField = getFieldByExpression(fieldAccessExpr);
+                       
+                    if (fieldAccessExpr.resolve().asField().isStatic()) {
+                    	
+                    VariableReference vr = context.getBuilder().appendStaticFieldStmt(javaField);
+                    return vr;
+                    
+                    }
+                    else {
+                    	
+                   
+                    	VariableReference vrReciver = getReferenceByExpression(fieldAccessExpr, context);
+                    	
+                    	
+                    	VariableReference vr = context.getBuilder().appendFieldStmt(vrReciver, javaField);
+                        return vr;
+
+                    }
+
+        }
+        
+        
+//        if (expr.isArrayCreationExpr()) {
+//        	
+//        	context.setVariableName(name);
+//        	
+//        	arrayVisitor.visit(vd, context);
+//        	
+//        	context.setVariableName("");
+//        	
+//        	
+//        }
+        
+        
+//        if (expr.isObjectCreationExpr()) {
+//        	
+//        	context.setVariableName(name);
+//        	
+//        	objectCreationVisitor.visit(vd, context);
+//        	
+//        	context.setVariableName("");
+//        }
+        
+        
+        return null;
+		
+		
+	}
 	
 	
 	private static Field getFieldByExpression (FieldAccessExpr fieldAccessExpr) {
@@ -112,13 +252,24 @@ public class VisitorCodeToTestCase {
 	
 	private static VariableReference getReferenceByExpression (FieldAccessExpr fieldAccessExpr, VisitorContext context) {
 		
+		
+		if (fieldAccessExpr.resolve().asField().isStatic()) {
+			
+			return null;
+		}
+		
+		else {
+		
 		Expression scope = fieldAccessExpr.getScope();
     	
     	String variableName = "";
+    	
+    	
 
     	if (scope.isNameExpr()) {
     	    variableName = scope.asNameExpr().getNameAsString();
-    	} else if (scope.isFieldAccessExpr()) {
+    	} 
+    	else if (scope.isFieldAccessExpr()) {
     	    // per accessi concatenati tipo: this.foo.bar
     	    variableName = scope.asFieldAccessExpr().toString(); 
     	} else {
@@ -128,6 +279,8 @@ public class VisitorCodeToTestCase {
     	VariableReference vrReciver = context.getTracker().getRefernce(variableName);
     	
     	return vrReciver;
+    	
+		}
 		
 		
 	}
@@ -186,12 +339,35 @@ public class VisitorCodeToTestCase {
             
             int i = 0;
             for (Expression parameter : parameters) {
+            	
+            	
+            	
+            	
+            	VariableReference vr = null;
+            	
+            	
+            	if (!parameter.isNameExpr() && parameter != null) {
+            		
+            		vr = appendPrimitiveStmt(parameter, context);
+            		
+            	}
+            	
+            	else if (parameter != null){
+            		
+                vr = context.getTracker().getRefernce(parameter.asNameExpr().getNameAsString());
                 
-
-                VariableReference vr = context.getTracker().getRefernce(parameter.asNameExpr().getNameAsString());
+            	}
                 parametersVr[i] = vr;
-
-                ResolvedType paramType = resolved.getParam(i).getType();
+                
+                ResolvedType paramType = null;
+                
+                
+                if (parameter != null) {
+                
+                 paramType = resolved.getParam(i).getType();
+                
+                }
+                
                 String className = "";
 
                 if (paramType.isPrimitive()) {
@@ -279,18 +455,21 @@ public class VisitorCodeToTestCase {
 				e.printStackTrace();
 			}
             
+            System.out.print("Arrivato prima dell'append");
+            
             VariableReference vr = context.getBuilder().appendMethod(vrReciver, method, parametersVr);
             
-            //context.getTracker().aggiungiVariabile(null, vr);
+            System.out.println("Nome metodo: " + mce.toString());
+            
+            context.getTracker().aggiungiVariabile(mce.toString(), vr);
+            
+           
 	        
 	
 		}
 		
 		
 	}
-	
-	
-	
 	
 	
 	private static class ObjectCreationVisitor extends VoidVisitorAdapter<VisitorContext> {
@@ -338,10 +517,32 @@ public class VisitorCodeToTestCase {
 	            for (Expression parameter : parameters) {
 	                
 
-	                VariableReference vr = context.getTracker().getRefernce(parameter.asNameExpr().getNameAsString());
+	            	VariableReference vr = null;
+	            	
+	            	
+	            	if (!parameter.isNameExpr() && parameter != null) {
+	            		
+	            		vr = appendPrimitiveStmt(parameter, context);
+	            		
+	            	}
+	            	
+	            	else  if (parameter != null){
+	            		
+	                vr = context.getTracker().getRefernce(parameter.asNameExpr().getNameAsString());
+	                
+	            	}
+	            	
 	                parametersVr[i] = vr;
 
-	                ResolvedType paramType = resolved.getParam(i).getType();
+	                ResolvedType paramType = null;
+	                
+	                
+	                if (parameter != null) {
+	                
+	                 paramType = resolved.getParam(i).getType();
+	                
+	                }
+	                
 	                String className = "";
 
 	                if (paramType.isPrimitive()) {
@@ -523,10 +724,6 @@ public class VisitorCodeToTestCase {
 		
 	}
 	
-	
-	
-	
-	
 
 	private static class ArrayCreationLevelVisitor extends VoidVisitorAdapter <ArrayList<Integer>> {
 	
@@ -624,8 +821,42 @@ public class VisitorCodeToTestCase {
 		            
 		            
 		            if (expr.isIntegerLiteralExpr()) {
+		            	
+		            	
+		            	if (vd.getType().toString().equals("byte")) {
+			            	
+			            	byte byteValue = Byte.parseByte(initializer);
+			            	
+			            	VariableReference vr = context.getBuilder().appendBytePrimitive(byteValue);
+		                    
+		                    
+		                    context.getTracker().aggiungiVariabile(name, vr);
+
+		                    
+			            }
+		            	
+		            	else if (vd.getType().toString().equals("short")) {
+		            		
+		            		short shortValue = Short.parseShort(initializer);
+		            		
+		            		VariableReference vr = context.getBuilder().appendShortPrimitive(shortValue);
+		            		
+		            		context.getTracker().aggiungiVariabile(name, vr);
+	
+		            	}
+		            	
+		            	else if (vd.getType().toString().equals("long")) {
+		            		
+		            		long longValue = Long.parseLong(initializer);
+		            		
+		            		VariableReference vr = context.getBuilder().appendLongPrimitive(longValue);
+		            		
+		            		context.getTracker().aggiungiVariabile(name, vr);
+		            	}
+		            	else {
+		            	
 		                
-		                try {
+		               
 		                    int intValue = Integer.parseInt(initializer);
 		                    
 		                    VariableReference vr = context.getBuilder().appendIntPrimitive(intValue);
@@ -633,12 +864,10 @@ public class VisitorCodeToTestCase {
 		                    
 		                    
 		                    context.getTracker().aggiungiVariabile(name, vr);
-
-		                    System.out.print(name);
 		                    
-		                } catch (NumberFormatException e) {
-		                    System.out.println("Valore int non parsabile: " + initializer);
-		                }
+		            	}
+		                    
+		                
 		            }
 		            
 		            if (expr.isBooleanLiteralExpr()) {
@@ -683,21 +912,26 @@ public class VisitorCodeToTestCase {
 		            	
 		            }
 		            
-		            if (vd.getType().toString().equals("float")) {
-		            	
-		            	float floatValue = Float.parseFloat(initializer);
-		            	
-		            	VariableReference vr = context.getBuilder().appendFloatPrimitive(floatValue);
-	                    
-	                    
-	                    
-	                    context.getTracker().aggiungiVariabile(name, vr);
-
-	                    System.out.print(name);
-		            	
-		            }
+		            
 		            
 		            if (expr.isDoubleLiteralExpr()){
+		            	
+		            	if (vd.getType().toString().equals("float")) {
+			            	
+			            	float floatValue = Float.parseFloat(initializer);
+			            	
+			            	VariableReference vr = context.getBuilder().appendFloatPrimitive(floatValue);
+		                    
+		                    
+		                    
+		                    context.getTracker().aggiungiVariabile(name, vr);
+
+		                    System.out.print("Float: " + name);
+			            	
+			            }
+		            	
+		            	else {
+
 		            	double doubleValue = Double.parseDouble(initializer);
 		            	
 		            	VariableReference vr = context.getBuilder().appendDoublePrimitive(doubleValue);
@@ -706,19 +940,11 @@ public class VisitorCodeToTestCase {
 	                    context.getTracker().aggiungiVariabile(name, vr);
 
 	                    System.out.print(name);
+	                    
+		            	}
 		            }
 		            
-		            if (vd.getType().toString().equals("byte")) {
-		            	
-		            	byte byteValue = Byte.parseByte(initializer);
-		            	
-		            	VariableReference vr = context.getBuilder().appendBytePrimitive(byteValue);
-	                    
-	                    
-	                    context.getTracker().aggiungiVariabile(name, vr);
-
-	                    System.out.print(name);
-		            }
+		            
 		            
 		            if (expr.isClassExpr()) {
 		            	
@@ -905,7 +1131,7 @@ public class VisitorCodeToTestCase {
 	    typeSolver.add(new ReflectionTypeSolver());
 	    
 	    String sourcePath = "src/main/java";
-		String jarLibsPath = "";
+		String jarLibsPath = "C:/Users/simon/.m2/repository/junit/junit/4.13.2/";
 		   
 	   
 	    //Mio codice sorgente
@@ -931,9 +1157,7 @@ public class VisitorCodeToTestCase {
 	    
 	    System.out.println(evoSuiteTestCases);
 	    
-	    
-	    
-	    
+   
 	}
 
 }
