@@ -317,7 +317,7 @@ public class BankAccountManager_ESTest extends BankAccountManager_ESTest_scaffol
       BankAccountManager bankAccountManager0 = new BankAccountManager();
       // Undeclared exception!
       try { 
-        //bankAccountManager0.createAccount((String) null, (String) null, 1.0);
+        bankAccountManager0.createAccount((String) null, (String) null, 1.0);
         //fail("Expecting exception: IllegalArgumentException");
       
       } catch(IllegalArgumentException e) {

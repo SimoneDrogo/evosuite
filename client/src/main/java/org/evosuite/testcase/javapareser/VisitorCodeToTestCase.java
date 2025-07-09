@@ -32,6 +32,7 @@ import com.github.javaparser.ast.expr.FieldAccessExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
+import com.github.javaparser.ast.expr.UnaryExpr;
 import com.github.javaparser.ast.stmt.AssertStmt;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.type.ArrayType;
@@ -87,10 +88,31 @@ public class VisitorCodeToTestCase {
 	
 	private static VariableReference appendPrimitiveStmt (Expression expr, VisitorContext context) {
 		
+		
+		ObjectCreationVisitor objectCreationVisitor = new ObjectCreationVisitor();
+		
+		ArrayCreationExprVisitor arrayVisitor = new ArrayCreationExprVisitor();
+		
+		MethodCallExprVisitor callVisitor = new MethodCallExprVisitor();
+		
+		int operator = 1;
+		
+	
+        if (expr.isUnaryExpr() && expr.asUnaryExpr().getOperator() == UnaryExpr.Operator.MINUS ) {
+        	
+        		
+               expr = expr.asUnaryExpr().getExpression();
+               
+               operator = -1;
+               
+        }
+		
 		if (expr.isIntegerLiteralExpr()) {
         	
         	
-                int intValue = Integer.parseInt(expr.toString());
+                int intValue = operator * Integer.parseInt(expr.toString());
+                
+                System.out.println("Int method creation: " + intValue);
                 
                 VariableReference vr = context.getBuilder().appendIntPrimitive(intValue);
                 
@@ -114,7 +136,7 @@ public class VisitorCodeToTestCase {
         	char charValue = expr.toString().charAt(1);
         	VariableReference vr = context.getBuilder().appendCharPrimitive(charValue);
             
-           return vr; 
+        	return vr; 
 
         }
         
@@ -133,7 +155,7 @@ public class VisitorCodeToTestCase {
         	
         	
 
-        	double doubleValue = Double.parseDouble(expr.toString());
+        	double doubleValue = operator * Double.parseDouble(expr.toString());
         	
         	VariableReference vr = context.getBuilder().appendDoublePrimitive(doubleValue);
             
@@ -179,9 +201,9 @@ public class VisitorCodeToTestCase {
                        
                     if (fieldAccessExpr.resolve().asField().isStatic()) {
                     	
-                    VariableReference vr = context.getBuilder().appendStaticFieldStmt(javaField);
-                    return vr;
-                    
+	                    VariableReference vr = context.getBuilder().appendStaticFieldStmt(javaField);
+	                    return vr;
+	                    
                     }
                     else {
                     	
@@ -197,26 +219,32 @@ public class VisitorCodeToTestCase {
         }
         
         
-//        if (expr.isArrayCreationExpr()) {
-//        	
-//        	context.setVariableName(name);
-//        	
-//        	arrayVisitor.visit(vd, context);
-//        	
-//        	context.setVariableName("");
-//        	
-//        	
-//        }
+        if (expr.isArrayCreationExpr()) {
+        	
+        	arrayVisitor.visit(expr.asArrayCreationExpr(), context);
+        	
+        	return context.getTracker().getRefernce(expr.asArrayAccessExpr().toString());
+
+        }
         
         
-//        if (expr.isObjectCreationExpr()) {
-//        	
-//        	context.setVariableName(name);
-//        	
-//        	objectCreationVisitor.visit(vd, context);
-//        	
-//        	context.setVariableName("");
-//        }
+        if (expr.isObjectCreationExpr()) {
+ 
+        	objectCreationVisitor.visit(expr.asObjectCreationExpr(), context);
+        	
+        	return context.getTracker().getRefernce(expr.asObjectCreationExpr().toString());
+        	
+   	
+        }
+        
+        if (expr.isMethodCallExpr()) {
+        	
+        	callVisitor.visit(expr.asMethodCallExpr(), context);
+        	
+        	return context.getTracker().getRefernce(expr.asMethodCallExpr().toString());
+        	
+        	
+        }
         
         
         return null;
@@ -295,6 +323,12 @@ public class VisitorCodeToTestCase {
 			
 			super.visit(mce, context);
 			
+			if(context.getTracker().contiene(mce.toString())) {
+				
+				return;
+			}
+			
+			
 			Optional<Expression> scopeOpt = mce.getScope();
 	    	
 	    	String variableName = "";
@@ -305,9 +339,14 @@ public class VisitorCodeToTestCase {
 	    	if (scopeOpt.isPresent()) {
 	    		
 	         Expression scope = scopeOpt.get();
+	         
+	         System.out.println(scope);
 
 	    	if (scope.isNameExpr()) {
 	    	    variableName = scope.asNameExpr().getNameAsString();
+	    	    
+	    	    System.out.println(variableName);
+	    	    
 	    	} else {
 	    	    variableName = scope.toString(); // fallback
 	    	}
@@ -340,9 +379,7 @@ public class VisitorCodeToTestCase {
             int i = 0;
             for (Expression parameter : parameters) {
             	
-            	
-            	
-            	
+         
             	VariableReference vr = null;
             	
             	
@@ -363,18 +400,26 @@ public class VisitorCodeToTestCase {
                 
                 
                 if (parameter != null) {
+                	
+                
                 
                  paramType = resolved.getParam(i).getType();
+                 
+                 
+                 
                 
                 }
                 
                 String className = "";
+                
+                
 
                 if (paramType.isPrimitive()) {
                     String simpleName = paramType.describe();
                     switch (simpleName) {
                         case "int":
                             className = "int";
+                        
                             break;
                         case "boolean":
                             className = "boolean";
@@ -401,7 +446,15 @@ public class VisitorCodeToTestCase {
                             throw new IllegalArgumentException("Tipo primitivo non gestito: " + simpleName);
                     }
                 } else {
-                    className = paramType.asReferenceType().getQualifiedName();
+                	
+                	if (paramType.isReferenceType()) {
+                		className = paramType.asReferenceType().getQualifiedName();
+                	}
+                	else {
+                		
+                		className = "java.lang.Object";
+                	}
+                    
                 }
 
                 Class<?> clazzParam = null;
@@ -439,6 +492,12 @@ public class VisitorCodeToTestCase {
                         }
                         break;
                 }
+                
+                if(parametersVr[i] == null) {
+                	
+                	parametersVr[i] = context.getBuilder().appendNull(clazzParam);
+                	
+                }
 
                 paramTypes.add(clazzParam);
                 i++;
@@ -459,9 +518,19 @@ public class VisitorCodeToTestCase {
             
             VariableReference vr = context.getBuilder().appendMethod(vrReciver, method, parametersVr);
             
+            
+            if (!context.getVariableName().equals("")) {
+            	
+            	context.getTracker().aggiungiVariabile(context.getVariableName(), vr);
+            }
+            
+            else {
+            
             System.out.println("Nome metodo: " + mce.toString());
             
             context.getTracker().aggiungiVariabile(mce.toString(), vr);
+            
+            }
             
            
 	        
@@ -477,6 +546,12 @@ public class VisitorCodeToTestCase {
 	    @Override
 	    public void visit(ObjectCreationExpr oc, VisitorContext context) {
 	        super.visit(oc, context);
+	        
+	        
+			if(context.getTracker().contiene(oc.toString())) {
+							
+							return;
+						}
 
 	        
 
@@ -493,6 +568,8 @@ public class VisitorCodeToTestCase {
 	                    context.getBuilder().appendFileNamePrimitive(file);
 	                }
 	            }
+	            
+	            
 	        } else {
 	        	
 	        	
@@ -576,7 +653,15 @@ public class VisitorCodeToTestCase {
 	                            throw new IllegalArgumentException("Tipo primitivo non gestito: " + simpleName);
 	                    }
 	                } else {
-	                    className = paramType.asReferenceType().getQualifiedName();
+	                	
+	                	
+	                	if (paramType.isReferenceType()) {
+	                		className = paramType.asReferenceType().getQualifiedName();
+	                	}
+	                	else {
+	                		
+	                		className = "java.lang.Object";
+	                	}
 	                }
 
 	                Class<?> clazzParam = null;
@@ -614,6 +699,12 @@ public class VisitorCodeToTestCase {
 	                        }
 	                        break;
 	                }
+	                
+	                if(parametersVr[i] == null) {
+	                	
+	                	parametersVr[i] = context.getBuilder().appendNull(clazzParam);
+	                	
+	                }
 
 	                paramTypes.add(clazzParam);
 	                i++;
@@ -626,9 +717,26 @@ public class VisitorCodeToTestCase {
 	            } catch (NoSuchMethodException | SecurityException e) {
 	                e.printStackTrace();
 	            }
+	            
+	            
 
 	            VariableReference vr = context.getBuilder().appendConstructor(constructor, parametersVr);
-	            context.getTracker().aggiungiVariabile(context.getVariableName(), vr);
+	            
+	            if (context.getVariableName().equals("")) {
+	            	
+	            	context.getTracker().aggiungiVariabile(oc.toString(), vr);
+	            	
+	            	System.out.println("Nome variabile assente: " + oc.toString());
+	            }
+	            
+	            else {
+	            	
+	            	context.getTracker().aggiungiVariabile(context.getVariableName(), vr);
+	            	
+	            	System.out.println("Nome variabile presente: " + context.getVariableName());
+	            
+	            
+	            }
 	        }
 	    }
 	}
@@ -731,7 +839,11 @@ public class VisitorCodeToTestCase {
 		@Override
 		public void visit(ArrayCreationLevel acl, ArrayList<Integer> lengths) {
 			
+			
 			super.visit(acl, lengths);
+			
+			
+			
 			
 			int length = Integer.parseInt(acl.getDimension().get().toString());
 			
@@ -750,6 +862,11 @@ public class VisitorCodeToTestCase {
 		public void visit(ArrayCreationExpr ace, VisitorContext context) {
 			
 			super.visit(ace, context);
+			
+			if(context.getTracker().contiene(ace.toString())) {
+							
+							return;
+						}
 
 		    // Prima otteniamo il numero di livelli (dimensioni dell'array)
 		    int dimensions = ace.getLevels().size();
@@ -791,9 +908,16 @@ public class VisitorCodeToTestCase {
 		    
 		    ArrayReference ar = context.getBuilder().appendArrayStmt(typeForEvoSuite, arrayPrimitivi);
 		    
-		    String name = context.getVariableName();	
-		    
-		    context.getTracker().aggiungiVariabile(name, ar);
+		    if (context.getVariableName().equals("")) {
+            	
+            	context.getTracker().aggiungiVariabile(ace.toString(), ar);
+            }
+            
+            else {
+            	
+            context.getTracker().aggiungiVariabile(context.getVariableName(), ar);
+            
+            }
 		    
 		}
 
@@ -810,6 +934,8 @@ public class VisitorCodeToTestCase {
 				
 				ArrayCreationExprVisitor arrayVisitor = new ArrayCreationExprVisitor();
 				
+				MethodCallExprVisitor callVisitor = new MethodCallExprVisitor();
+				
 				
 				
 
@@ -820,12 +946,25 @@ public class VisitorCodeToTestCase {
 		            String name = vd.getNameAsString();
 		            
 		            
+		            
+		            
+		            
+		            if (expr.isUnaryExpr() && expr.asUnaryExpr().getOperator() == UnaryExpr.Operator.MINUS ) {
+		            	
+		            		
+		                   expr = expr.asUnaryExpr().getExpression();
+
+		            }
+		            
+		            
 		            if (expr.isIntegerLiteralExpr()) {
 		            	
 		            	
 		            	if (vd.getType().toString().equals("byte")) {
 			            	
-			            	byte byteValue = Byte.parseByte(initializer);
+			            	byte byteValue =  Byte.parseByte(initializer);
+			            	
+			            	
 			            	
 			            	VariableReference vr = context.getBuilder().appendBytePrimitive(byteValue);
 		                    
@@ -847,7 +986,7 @@ public class VisitorCodeToTestCase {
 		            	
 		            	else if (vd.getType().toString().equals("long")) {
 		            		
-		            		long longValue = Long.parseLong(initializer);
+		            		long longValue =  Long.parseLong(initializer);
 		            		
 		            		VariableReference vr = context.getBuilder().appendLongPrimitive(longValue);
 		            		
@@ -932,7 +1071,7 @@ public class VisitorCodeToTestCase {
 		            	
 		            	else {
 
-		            	double doubleValue = Double.parseDouble(initializer);
+		            	double doubleValue =  Double.parseDouble(initializer);
 		            	
 		            	VariableReference vr = context.getBuilder().appendDoublePrimitive(doubleValue);
 	                    
@@ -1038,6 +1177,18 @@ public class VisitorCodeToTestCase {
 		            	
 		            	context.setVariableName("");
 		            }
+		            
+		            if(expr.isMethodCallExpr()) {
+		            	
+		            	context.setVariableName(name);
+		            	
+		            	callVisitor.visit(vd, context);
+		            	
+		            	context.setVariableName("");
+		            	
+		            	
+		            }
+		            
 		        }
 		            
 		      else {

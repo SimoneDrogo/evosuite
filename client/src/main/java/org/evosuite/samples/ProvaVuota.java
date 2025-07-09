@@ -33,8 +33,11 @@ public class ProvaVuota {
 		boolean y = true;
 		int z = 1;
 		int f = 2;
+		
+		int h = -4;
+		
 		String prova = "prova";
-		double d = 3.675989;
+		double d = -3.675989;
 		
 		int g = 4;
 		

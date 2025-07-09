@@ -14,11 +14,11 @@ public class VariabiliTracker {
     // Aggiunge una variabile, ma segnala errore se il nome esiste già
     public void aggiungiVariabile(String nome, VariableReference variable) {
         if (variabili.containsKey(nome)) {
-            throw new IllegalArgumentException("La variabile '" + nome + "' è già stata dichiarata.");
+            System.out.println("Attenzione: la variabile '" + nome + "' è già stata dichiarata. Ignorata.");
+            return;
         }
         variabili.put(nome, variable);
     }
-
     public VariableReference getRefernce(String nome) {
         return variabili.get(nome);
     }
