@@ -1,5 +1,7 @@
 package org.evosuite.testcase.javapareser;
 
+import com.github.javaparser.ast.NodeList;
+import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.resolution.types.*;
 
 import java.lang.reflect.*;
@@ -7,14 +9,21 @@ import java.lang.reflect.*;
 public class ResolvedTypeToReflectTypeConverter {
 
     public static Type toReflectType(ResolvedType resolvedType) throws ClassNotFoundException {
+    	
+    	System.out.println("Sono arrivato alla classe statica");
 
         if (resolvedType.isPrimitive()) {
             return mapPrimitive(resolvedType.asPrimitive());
         } 
         else if (resolvedType.isArray()) {
+        	
             return mapArray(resolvedType.asArrayType());
         } 
         else if (resolvedType.isReferenceType()) {
+        	
+        	System.out.println("Sono nel branch ReferenceType");
+        	
+        	
             return mapReference(resolvedType.asReferenceType());
         } 
         else if (resolvedType.isTypeVariable()) {
@@ -56,7 +65,15 @@ public class ResolvedTypeToReflectTypeConverter {
     }
 
     private static Type mapReference(ResolvedReferenceType referenceType) throws ClassNotFoundException {
+    	
+    	
+    	System.out.println("Parametri dei null:  " + referenceType.typeParametersValues());
+    	
+    	
+    	
         String qualifiedName = referenceType.getQualifiedName();
         return Class.forName(qualifiedName);
+        
+   
     }
 }

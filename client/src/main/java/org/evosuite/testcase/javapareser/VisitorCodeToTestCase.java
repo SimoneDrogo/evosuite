@@ -43,9 +43,12 @@ import com.github.javaparser.resolution.UnsolvedSymbolException;
 import com.github.javaparser.resolution.declarations.ResolvedConstructorDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedFieldDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
+import com.github.javaparser.resolution.declarations.ResolvedTypeParameterDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedValueDeclaration;
+import com.github.javaparser.resolution.types.ResolvedReferenceType;
 import com.github.javaparser.resolution.types.ResolvedType;
 import com.github.javaparser.symbolsolver.JavaSymbolSolver;
+import com.github.javaparser.symbolsolver.javaparsermodel.JavaParserFacade;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.JarTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeSolver;
@@ -62,7 +65,7 @@ import org.evosuite.testcase.variable.VariableReferenceImpl;
 
 public class VisitorCodeToTestCase {
 	
-	private static final String FILE_PATH = "src/main/java/org/evosuite/samples/BankAccountManager_ESTest.java";
+	private static final String FILE_PATH = "src/main/java/org/evosuite/samples/ProvaVuota.java";
 	
 	
 	public static void addJarsFromFolder(CombinedTypeSolver typeSolver, File jarFolder) {
@@ -98,21 +101,59 @@ public class VisitorCodeToTestCase {
 		int operator = 1;
 		
 	
-        if (expr.isUnaryExpr() && expr.asUnaryExpr().getOperator() == UnaryExpr.Operator.MINUS ) {
+        if (expr.isUnaryExpr() && expr.asUnaryExpr().getOperator() == UnaryExpr.Operator.MINUS || expr.isEnclosedExpr()) {
         	
+        	if(expr.isEnclosedExpr()) {
         		
-               expr = expr.asUnaryExpr().getExpression();
-               
-               operator = -1;
-               
+        		expr = expr.asEnclosedExpr().getInner();
+        		
+        	}
+        	
+        	if(expr.isUnaryExpr() && expr.asUnaryExpr().getOperator() == UnaryExpr.Operator.MINUS) {
+        	
+	        	expr = expr.asUnaryExpr().getExpression();
+	            
+	            operator = -1;
+	            
+	            
+        	}
+                
+
+           
         }
+        
+        if (expr.isCastExpr()) {
+        	
+        	String type = expr.asCastExpr().getTypeAsString();
+        	
+        
+        	switch (type) {
+            case "int":
+                return context.getBuilder().appendIntPrimitive(Integer.parseInt(expr.asCastExpr().getExpression().toString()));
+            case "double":
+                return context.getBuilder().appendDoublePrimitive(Double.parseDouble(expr.asCastExpr().getExpression().toString()));
+            case "long":
+                return context.getBuilder().appendLongPrimitive(Long.parseLong(expr.asCastExpr().getExpression().toString()));
+            case "char":
+                return context.getBuilder().appendCharPrimitive(expr.asCastExpr().getExpression().toString().charAt(1));
+            case "float":
+                return context.getBuilder().appendFloatPrimitive(Float.parseFloat(expr.asCastExpr().getExpression().toString()));
+            case "short":
+                return context.getBuilder().appendShortPrimitive(Short.parseShort(expr.asCastExpr().getExpression().toString()));
+            case "byte":
+                return context.getBuilder().appendBytePrimitive(Byte.parseByte(expr.asCastExpr().getExpression().toString()));
+            default:
+                
+        	}
+        }
+     
+        
 		
 		if (expr.isIntegerLiteralExpr()) {
         	
         	
                 int intValue = operator * Integer.parseInt(expr.toString());
                 
-                System.out.println("Int method creation: " + intValue);
                 
                 VariableReference vr = context.getBuilder().appendIntPrimitive(intValue);
                 
@@ -340,12 +381,12 @@ public class VisitorCodeToTestCase {
 	    		
 	         Expression scope = scopeOpt.get();
 	         
-	         System.out.println(scope);
+	         
 
 	    	if (scope.isNameExpr()) {
 	    	    variableName = scope.asNameExpr().getNameAsString();
 	    	    
-	    	    System.out.println(variableName);
+	    	    
 	    	    
 	    	} else {
 	    	    variableName = scope.toString(); // fallback
@@ -361,7 +402,11 @@ public class VisitorCodeToTestCase {
 	    	}
 	    	
 	    	ResolvedMethodDeclaration resolved = mce.resolve();
+	    	
+	    	
 	        String qualifiedName = resolved.declaringType().getQualifiedName();
+	        
+	        
 
 	        Class<?> clazz = null;
 
@@ -385,15 +430,25 @@ public class VisitorCodeToTestCase {
             	
             	if (!parameter.isNameExpr() && parameter != null) {
             		
-            		vr = appendPrimitiveStmt(parameter, context);
+            		if (parameter.isCastExpr() && parameter.asCastExpr().getExpression().isNameExpr()) {
+            			
+            			vr = context.getTracker().getRefernce(parameter.asCastExpr().getExpression().toString());
+            		}
+            		
+            		else {
+            		
+            		
+            			vr = appendPrimitiveStmt(parameter, context);
+            		}
             		
             	}
             	
             	else if (parameter != null){
             		
-                vr = context.getTracker().getRefernce(parameter.asNameExpr().getNameAsString());
+            		vr = context.getTracker().getRefernce(parameter.asNameExpr().getNameAsString());
                 
             	}
+            	
                 parametersVr[i] = vr;
                 
                 ResolvedType paramType = null;
@@ -401,13 +456,8 @@ public class VisitorCodeToTestCase {
                 
                 if (parameter != null) {
                 	
-                
-                
                  paramType = resolved.getParam(i).getType();
-                 
-                 
-                 
-                
+
                 }
                 
                 String className = "";
@@ -452,7 +502,28 @@ public class VisitorCodeToTestCase {
                 	}
                 	else {
                 		
-                		className = "java.lang.Object";
+                		if(paramType.isTypeVariable()) {
+                			
+                			
+                			CombinedTypeSolver typeSolver = context.getGlobalContext().getTypeSolver();
+                	        
+                	        
+                	        ResolvedReferenceType callerType = JavaParserFacade.get(typeSolver).getType(mce.getScope().get()).asReferenceType();
+                	        
+                	        
+                	        System.out.println(callerType.asReferenceType().typeParametersValues().get(0).asReferenceType().getQualifiedName());
+                	        
+
+                	        className = "java.lang.Object";
+                	         
+                				
+                		}
+                		else {	
+                		
+                			className = "java.lang.Object";
+                		
+                		
+                		}
                 	}
                     
                 }
@@ -514,7 +585,7 @@ public class VisitorCodeToTestCase {
 				e.printStackTrace();
 			}
             
-            System.out.print("Arrivato prima dell'append");
+            
             
             VariableReference vr = context.getBuilder().appendMethod(vrReciver, method, parametersVr);
             
@@ -526,7 +597,7 @@ public class VisitorCodeToTestCase {
             
             else {
             
-            System.out.println("Nome metodo: " + mce.toString());
+            
             
             context.getTracker().aggiungiVariabile(mce.toString(), vr);
             
@@ -562,10 +633,41 @@ public class VisitorCodeToTestCase {
 	                if (arg.isStringLiteralExpr()) {
 	                    StringLiteralExpr strExpr = arg.asStringLiteralExpr();
 	                    String path = strExpr.getValue();
-	                    System.out.println("Percorso del file: " + path);
+	                    
 
 	                    EvoSuiteFile file = new EvoSuiteFile(path);
 	                    context.getBuilder().appendFileNamePrimitive(file);
+	                }
+	                
+	                if (arg.isNameExpr()) {
+	                	
+	                	VariableReference vrFile = context.getTracker().getRefernce(arg.asNameExpr().getNameAsString());
+	                	
+	                	TestCase testCase = context.getBuilder().getDefaultTestCase();
+	                	
+	                	Statement stmt = testCase.getStatement(vrFile.getStPosition());
+	                	
+	                	if (stmt instanceof PrimitiveStatement<?>) {
+	                	    Object value = ((PrimitiveStatement<?>) stmt).getValue();
+	                	    
+	                	    if (value instanceof String) {
+	                	        String stringValue = (String) value;
+	                	        
+	                	        
+	                	        String path = stringValue;
+	                	        
+	                	        EvoSuiteFile file = new EvoSuiteFile(path);
+	    	                    context.getBuilder().appendFileNamePrimitive(file);
+	                	        
+	                	    } else {
+	                	        System.out.println("La variabile non contiene una stringa, ma: " + value);
+	                	    }
+	                	} else {
+	                	    System.out.println("Lo statement non è una stringa primitiva");
+	                	}
+	                	
+	                	
+	                	
 	                }
 	            }
 	            
@@ -726,14 +828,14 @@ public class VisitorCodeToTestCase {
 	            	
 	            	context.getTracker().aggiungiVariabile(oc.toString(), vr);
 	            	
-	            	System.out.println("Nome variabile assente: " + oc.toString());
+	            	
 	            }
 	            
 	            else {
 	            	
 	            	context.getTracker().aggiungiVariabile(context.getVariableName(), vr);
 	            	
-	            	System.out.println("Nome variabile presente: " + context.getVariableName());
+	            	
 	            
 	            
 	            }
@@ -794,7 +896,7 @@ public class VisitorCodeToTestCase {
 	        	
 	        	String arrayName = ae.getTarget().asArrayAccessExpr().getName().toString();
 	        	
-	        	System.out.println(arrayName);
+	        	
 	        	
 	        	ArrayReference ar = (ArrayReference) context.getTracker().getRefernce(arrayName);
 	        	
@@ -843,8 +945,6 @@ public class VisitorCodeToTestCase {
 			super.visit(acl, lengths);
 			
 			
-			
-			
 			int length = Integer.parseInt(acl.getDimension().get().toString());
 			
 			
@@ -865,8 +965,8 @@ public class VisitorCodeToTestCase {
 			
 			if(context.getTracker().contiene(ace.toString())) {
 							
-							return;
-						}
+				return;
+			}
 
 		    // Prima otteniamo il numero di livelli (dimensioni dell'array)
 		    int dimensions = ace.getLevels().size();
@@ -944,15 +1044,29 @@ public class VisitorCodeToTestCase {
 		        	Expression expr = vd.getInitializer().get();
 		            String initializer = expr.toString();
 		            String name = vd.getNameAsString();
+		            int operator = 1;
 		            
 		            
 		            
 		            
 		            
-		            if (expr.isUnaryExpr() && expr.asUnaryExpr().getOperator() == UnaryExpr.Operator.MINUS ) {
+		            if (expr.isUnaryExpr() && expr.asUnaryExpr().getOperator() == UnaryExpr.Operator.MINUS || expr.isEnclosedExpr()) {
 		            	
+		            	
+		            	if (expr.isEnclosedExpr())	{
+		            		
+		            		
+		            		
+		            		expr = expr.asEnclosedExpr().getInner();
+		            		
+		            		
+		            	}	            	
 		            		
 		                   expr = expr.asUnaryExpr().getExpression();
+		                   
+		                   operator = -1;
+		                   
+		                   
 
 		            }
 		            
@@ -960,9 +1074,11 @@ public class VisitorCodeToTestCase {
 		            if (expr.isIntegerLiteralExpr()) {
 		            	
 		            	
+		            	
+		            	
 		            	if (vd.getType().toString().equals("byte")) {
 			            	
-			            	byte byteValue =  Byte.parseByte(initializer);
+			            	byte byteValue = (byte)(operator * Byte.parseByte(expr.toString()));
 			            	
 			            	
 			            	
@@ -976,7 +1092,7 @@ public class VisitorCodeToTestCase {
 		            	
 		            	else if (vd.getType().toString().equals("short")) {
 		            		
-		            		short shortValue = Short.parseShort(initializer);
+		            		short shortValue = (short) (operator * Short.parseShort(expr.toString()));
 		            		
 		            		VariableReference vr = context.getBuilder().appendShortPrimitive(shortValue);
 		            		
@@ -986,7 +1102,7 @@ public class VisitorCodeToTestCase {
 		            	
 		            	else if (vd.getType().toString().equals("long")) {
 		            		
-		            		long longValue =  Long.parseLong(initializer);
+		            		long longValue = (long) (operator * Long.parseLong(expr.toString()));
 		            		
 		            		VariableReference vr = context.getBuilder().appendLongPrimitive(longValue);
 		            		
@@ -996,7 +1112,7 @@ public class VisitorCodeToTestCase {
 		            	
 		                
 		               
-		                    int intValue = Integer.parseInt(initializer);
+		                    int intValue = operator * Integer.parseInt(expr.toString());
 		                    
 		                    VariableReference vr = context.getBuilder().appendIntPrimitive(intValue);
 		                    
@@ -1021,7 +1137,7 @@ public class VisitorCodeToTestCase {
 	                    
 	                    context.getTracker().aggiungiVariabile(name, vr);
 
-	                    System.out.print(name);
+	                    
 		            }
 		            
 		            
@@ -1034,21 +1150,17 @@ public class VisitorCodeToTestCase {
 	                    
 	                    context.getTracker().aggiungiVariabile(name, vr);
 
-	                    System.out.print(name);
+	                    
 		            	
 		            }
 		            
 		            if (expr.isStringLiteralExpr()) {
 		            	
 		            	VariableReference vr = context.getBuilder().appendStringPrimitive(initializer.substring(1, initializer.length() -1));
-	                    
-	                   
+
 	                    
 	                    context.getTracker().aggiungiVariabile(name, vr);
-
-	                    System.out.print(name);
-	                    
-		            	
+	
 		            }
 		            
 		            
@@ -1057,7 +1169,7 @@ public class VisitorCodeToTestCase {
 		            	
 		            	if (vd.getType().toString().equals("float")) {
 			            	
-			            	float floatValue = Float.parseFloat(initializer);
+			            	float floatValue = (float)  (operator * Float.parseFloat(expr.toString()));
 			            	
 			            	VariableReference vr = context.getBuilder().appendFloatPrimitive(floatValue);
 		                    
@@ -1065,21 +1177,19 @@ public class VisitorCodeToTestCase {
 		                    
 		                    context.getTracker().aggiungiVariabile(name, vr);
 
-		                    System.out.print("Float: " + name);
+		                    
 			            	
 			            }
 		            	
 		            	else {
+	
+			            	double doubleValue =  operator * Double.parseDouble(expr.toString());
+			            	
+			            	VariableReference vr = context.getBuilder().appendDoublePrimitive(doubleValue);
+		                    
+		                    
+		                    context.getTracker().aggiungiVariabile(name, vr);
 
-		            	double doubleValue =  Double.parseDouble(initializer);
-		            	
-		            	VariableReference vr = context.getBuilder().appendDoublePrimitive(doubleValue);
-	                    
-	                    
-	                    context.getTracker().aggiungiVariabile(name, vr);
-
-	                    System.out.print(name);
-	                    
 		            	}
 		            }
 		            
@@ -1106,7 +1216,7 @@ public class VisitorCodeToTestCase {
 	                    
 	                    context.getTracker().aggiungiVariabile(name, vr);
 
-	                    System.out.print(name);
+	                    
 		            	
 		            }
 		            
@@ -1127,7 +1237,7 @@ public class VisitorCodeToTestCase {
 	                    
 	                    context.getTracker().aggiungiVariabile(name, vr);
 
-	                    System.out.print(name);
+	                    
 		            }
 		            
 		            if (expr.isFieldAccessExpr()) {
@@ -1241,34 +1351,36 @@ public class VisitorCodeToTestCase {
 		
 	
 	
-	private static class MethodVisitor extends VoidVisitorAdapter<List<TestCase>> {
+	private static class MethodVisitor extends VoidVisitorAdapter<GlobalContext> {
 
 		  @Override
-		  public void visit(MethodDeclaration md, List<TestCase> collector) {
-				super.visit(md, collector);
-				
-				VariableDeclaratorVisitor variableVisitor = new VariableDeclaratorVisitor();
-				
-				AssignExprVisitor assignVisitor = new AssignExprVisitor();
-				
-				MethodCallExprVisitor callVisitor = new MethodCallExprVisitor();
+		  public void visit(MethodDeclaration md, GlobalContext globalContext) {
+				super.visit(md, globalContext);
 				
 				
+				if (md.isAnnotationPresent("Test")) {
+					
+						VariableDeclaratorVisitor variableVisitor = new VariableDeclaratorVisitor();
+						
+						AssignExprVisitor assignVisitor = new AssignExprVisitor();
+						
+						MethodCallExprVisitor callVisitor = new MethodCallExprVisitor();
+						
+		
+					    TestCaseBuilder builder = new TestCaseBuilder();
+					    VisitorContext context = new VisitorContext(md, builder, globalContext);
+		
+						variableVisitor.visit(md, context);
+						
+						assignVisitor.visit(md, context);
+						
+						callVisitor.visit(md, context);
+						
+						globalContext.add(builder.getDefaultTestCase());
+					
+					
+				}
 				
-			    
-			    DefaultTestCase testCase = new DefaultTestCase();
-			    TestCaseBuilder builder = new TestCaseBuilder(testCase, 0);
-			    VisitorContext context = new VisitorContext(md, builder);
-
-				variableVisitor.visit(md, context);
-				
-				assignVisitor.visit(md, context);
-				
-				callVisitor.visit(md, context);
-				
-				
-				
-				collector.add(testCase);
 		  }
 	 }
 	
@@ -1302,11 +1414,17 @@ public class VisitorCodeToTestCase {
 	    CompilationUnit cu = StaticJavaParser.parse(Files.newInputStream(Paths.get(FILE_PATH)));
 
 	    // 3. Ora puoi passare cu ai tuoi visitor, e il resolve() funzionerà dentro il visitor
-	    List<TestCase> evoSuiteTestCases = new ArrayList<>();
-	    MethodVisitor visitor = new MethodVisitor();
-	    visitor.visit(cu, evoSuiteTestCases);
 	    
-	    System.out.println(evoSuiteTestCases);
+	    MethodVisitor visitor = new MethodVisitor();
+	    
+	    List<TestCase> evoSuiteTestCases = new ArrayList();
+	    
+	    GlobalContext context = new GlobalContext(evoSuiteTestCases, typeSolver);
+	    
+	    visitor.visit(cu, context);
+	    
+	    System.out.println(context.getTestCases());
+	    
 	    
    
 	}

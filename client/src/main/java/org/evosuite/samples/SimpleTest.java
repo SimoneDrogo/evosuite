@@ -42,6 +42,9 @@ public class SimpleTest extends TestCase
 		c.add(new Integer(3));
 		c.add(new Integer(5));
 		c.add(new Integer(8));
+		c.add(5);
+		c.add(3.45);
+		
 		assertEquals(16, simple.sum(c));
 	}
 	

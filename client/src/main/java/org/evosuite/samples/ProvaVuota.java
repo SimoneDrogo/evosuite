@@ -4,17 +4,21 @@ import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import org.evosuite.symbolic.TestCaseBuilder;
+import org.evosuite.testcase.variable.VariableReference;
 import org.junit.Test;
+
+import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeSolver;
 
 
 public class ProvaVuota {
 	
 	enum  Day {lunedi, martedi, mercoledi, giovedi, venerdi, sabato, domenica};
 	
-	private static final String FILE_PATH = "src/main/java/org/evosuite/samples/FieldProva.java";
+	private static final String FILE_PATH = "src/main/java/org/evosuite/samples/SimpleTest.java";
 	
 	@Test
     public void testFoo() {
@@ -23,6 +27,14 @@ public class ProvaVuota {
 		
 		
 		File file = new File("src/main/java/org/evosuite/samples/FieldProva.java");
+		
+		String jarLibsPath = "C:/Users/simon/.m2/repository/junit/junit/4.13.2/";
+		   
+		   
+	    
+        File libDir = new File(jarLibsPath);
+        
+        
 		
 		
 		
@@ -90,11 +102,17 @@ public class ProvaVuota {
 		boolean b = false;
 		char c = 'c';
 		
-		 float eee = 3.0F;
+		char rrt = 'é';
+		
+		float eee = -3.0F;
 		
 		String provalunga = "è una stringa più lunga";
 		
 		byte morse = 6;
+		
+		Object hello = (Object) 3;
+		
+		
 		
 		
 		Class<?> clazz1 = Math.class;
@@ -106,9 +124,17 @@ public class ProvaVuota {
 		
 		Integer pazzia = null;
 		
-		List<String> lista  = null;
+		List<Class> lista  = new ArrayList();
+		
+		HashMap<Integer, Double>   mappa  = null;
+		
+		Class<?> classona = null;
+		
+		HashMap<Integer, String> mappina = new HashMap();
 		
 		String[][][] vettoreStringa = new String[7][12][36];
+		
+		lista.add(clazz2);
 		
 		
 		
