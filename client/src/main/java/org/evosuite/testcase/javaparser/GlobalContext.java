@@ -1,4 +1,4 @@
-package org.evosuite.testcase.javapareser;
+package org.evosuite.testcase.javaparser;
 
 import java.util.List;
 

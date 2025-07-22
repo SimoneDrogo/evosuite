@@ -1,4 +1,4 @@
-package org.evosuite.testcase.javapareser;
+package org.evosuite.testcase.javaparser;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -9,31 +9,52 @@ import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSolver;
 
 public class VisitorContext {
-    private final MethodDeclaration methodUnderTest;
-    private final TestCaseBuilder builder;
-    private final VariabiliTracker tracker;
+    
+    private  TestCaseBuilder builder;
+    private  VariabiliTracker tracker;
     private String variableName;
     private GlobalContext globalContext;
+    private List<TestCase> evoSuiteTestCases;
     
 
-    public VisitorContext(MethodDeclaration methodUnderTest, TestCaseBuilder builder, GlobalContext globalContext) {
-        this.methodUnderTest = methodUnderTest;
-        this.builder = builder;
-        this.tracker = new VariabiliTracker();
-        this.globalContext = globalContext;
+    public VisitorContext(List<TestCase> evoSuiteTestCases) {
+ 
+    	this.evoSuiteTestCases = evoSuiteTestCases;
+        //this.globalContext = globalContext;
         
     }
+    
+    
+	public void add (TestCase tcas) {
+	    	
+	    	this.evoSuiteTestCases.add(tcas);
+	}
+	
+	
+	public List<TestCase> getTestCases(){
+	    	
+	    	return this.evoSuiteTestCases;
+	    }
 
-    public MethodDeclaration getMethodUnderTest() {
-        return methodUnderTest;
-    }
-
+    
     public TestCaseBuilder getBuilder() {
         return builder;
+    }
+    
+    public void setBuilder (TestCaseBuilder builder){
+    	
+    	this.builder = builder;
     }
 
     public VariabiliTracker getTracker() {
         return tracker;
+    }
+    
+    public void setTracker(VariabiliTracker tracker){
+    	
+    	this.tracker = tracker;
+    	
+    	
     }
     
     public String getVariableName() {

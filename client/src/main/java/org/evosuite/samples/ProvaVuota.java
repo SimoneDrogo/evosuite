@@ -16,9 +16,9 @@ import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeS
 
 public class ProvaVuota {
 	
-	enum  Day {lunedi, martedi, mercoledi, giovedi, venerdi, sabato, domenica};
+	//enum  Day {lunedi, martedi, mercoledi, giovedi, venerdi, sabato, domenica};
 	
-	private static final String FILE_PATH = "src/main/java/org/evosuite/samples/SimpleTest.java";
+	//private static final String FILE_PATH = "src/main/java/org/evosuite/samples/SimpleTest.java";
 	
 	@Test
     public void testFoo() {

@@ -35,7 +35,7 @@ public class BankAccountManager_ESTest extends BankAccountManager_ESTest_scaffol
       } catch(IllegalArgumentException e) {
          //
          // Invalid transfer
-         //
+   //      //
          //verifyException("BankAccountManager", e);
       }
   }

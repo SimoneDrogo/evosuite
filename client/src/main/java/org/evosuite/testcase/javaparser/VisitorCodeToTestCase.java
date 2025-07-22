@@ -1,4 +1,4 @@
-package org.evosuite.testcase.javapareser;
+package org.evosuite.testcase.javaparser;
 
 import static org.mockito.ArgumentMatchers.intThat;
 
@@ -65,7 +65,7 @@ import org.evosuite.testcase.variable.VariableReferenceImpl;
 
 public class VisitorCodeToTestCase {
 	
-	private static final String FILE_PATH = "src/main/java/org/evosuite/samples/ProvaVuota.java";
+	private static final String FILE_PATH = "src/main/java/org/evosuite/samples/SimpleTest.java";
 	
 	
 	public static void addJarsFromFolder(CombinedTypeSolver typeSolver, File jarFolder) {

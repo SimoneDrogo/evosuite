@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with EvoSuite. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.evosuite.testcase.javapareser;
+package org.evosuite.testcase.javaparser;
 
 import org.evosuite.runtime.testdata.EvoSuiteFile;
 import org.evosuite.testcase.DefaultTestCase;
