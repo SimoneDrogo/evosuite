@@ -16,9 +16,9 @@ import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeS
 
 public class ProvaVuota {
 	
-	//enum  Day {lunedi, martedi, mercoledi, giovedi, venerdi, sabato, domenica};
+	private static enum  Day {lunedi, martedi, mercoledi, giovedi, venerdi, sabato, domenica};
 	
-	//private static final String FILE_PATH = "src/main/java/org/evosuite/samples/SimpleTest.java";
+	
 	
 	@Test
     public void testFoo() {
@@ -36,9 +36,9 @@ public class ProvaVuota {
         
         
 		
+		Day giorno = Day.lunedi;
 		
 		
-		//Day giorno = Day.lunedi;
 		
 		
 		boolean x = false;
@@ -53,7 +53,7 @@ public class ProvaVuota {
 		
 		int g = 4;
 		
-		int non;
+		int non = 0;
 		
 		Class<?> clazz = String.class;
 		
@@ -66,6 +66,12 @@ public class ProvaVuota {
 		f = array[1];
 		
 		int[][] vettore = new int[1][2];
+		
+		
+		
+		vettore[0][2] = 3;
+		
+		vettore[1][1] = non;
 		
 		double pi = Math.PI;
 		
@@ -110,7 +116,7 @@ public class ProvaVuota {
 		
 		byte morse = 6;
 		
-		Object hello = (Object) 3;
+		
 		
 		
 		

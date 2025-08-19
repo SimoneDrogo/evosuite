@@ -13,7 +13,7 @@ public class VisitorContext {
     private  TestCaseBuilder builder;
     private  VariabiliTracker tracker;
     private String variableName;
-    private GlobalContext globalContext;
+
     private List<TestCase> evoSuiteTestCases;
     
 
@@ -68,9 +68,6 @@ public class VisitorContext {
     	
     }
     
-    public GlobalContext getGlobalContext() {
-    	
-    	return this.globalContext;
-    }
+
 }
 

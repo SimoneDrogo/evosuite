@@ -228,6 +228,7 @@ public class TestCaseBuilder {
         AssignmentStatement stmt = new AssignmentStatement(testCase, var, arrayIndex);
         addStatement(stmt);
     }
+    
 
     public VariableReference appendLongPrimitive(long l) {
         LongPrimitiveStatement primitiveStmt = new LongPrimitiveStatement(testCase, l);

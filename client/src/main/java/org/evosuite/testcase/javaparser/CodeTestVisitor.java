@@ -25,6 +25,7 @@ import com.github.javaparser.ast.body.EnumDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
+import com.github.javaparser.ast.expr.ArrayAccessExpr;
 import com.github.javaparser.ast.expr.ArrayCreationExpr;
 import com.github.javaparser.ast.expr.AssignExpr;
 import com.github.javaparser.ast.expr.Expression;
@@ -45,6 +46,7 @@ import com.github.javaparser.resolution.declarations.ResolvedFieldDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedTypeParameterDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedValueDeclaration;
+import com.github.javaparser.resolution.types.ResolvedArrayType;
 import com.github.javaparser.resolution.types.ResolvedReferenceType;
 import com.github.javaparser.resolution.types.ResolvedType;
 import com.github.javaparser.symbolsolver.JavaSymbolSolver;
@@ -65,7 +67,9 @@ import org.evosuite.testcase.variable.VariableReferenceImpl;
 
 public class CodeTestVisitor {
 	
-	private static final String FILE_PATH = "src/main/java/org/evosuite/samples/Simple_ESTest.java";
+	private static final String FILE_PATH = "src/main/java/org/evosuite/samples/EvoComplex_ESTest.java";
+	
+	
 	
 	
 	private static void addJarsFromFolder(CombinedTypeSolver typeSolver, File jarFolder) {
@@ -96,12 +100,26 @@ public class CodeTestVisitor {
 
 		int operator = 1;
 		
+		if (expr.isCastExpr()) {
+		
+        	expr = expr.asCastExpr().getExpression();
+			
+		}
+		
 	
         if (expr.isUnaryExpr() && expr.asUnaryExpr().getOperator() == UnaryExpr.Operator.MINUS || expr.isEnclosedExpr()) {
         	
+        	
+        	
         	if(expr.isEnclosedExpr()) {
         		
-        		expr = expr.asEnclosedExpr().getInner();
+        		
+        		
+        		while(expr.isEnclosedExpr()) {
+        			expr = expr.asEnclosedExpr().getInner();
+        			
+        			
+        		}
         		
         	}
         	
@@ -118,36 +136,20 @@ public class CodeTestVisitor {
            
         }
         
-        if (expr.isCastExpr()) {
+        if (expr.isLongLiteralExpr()) {
         	
-        	String type = expr.asCastExpr().getTypeAsString();
+        	String exprToString = expr.toString();
         	
-        
-        	switch (type) {
-            case "int":
-                return context.getBuilder().appendIntPrimitive(Integer.parseInt(expr.asCastExpr().getExpression().toString()));
-            case "double":
-                return context.getBuilder().appendDoublePrimitive(Double.parseDouble(expr.asCastExpr().getExpression().toString()));
-            case "long":
-                return context.getBuilder().appendLongPrimitive(Long.parseLong(expr.asCastExpr().getExpression().toString()));
-            case "char":
-                return context.getBuilder().appendCharPrimitive(expr.asCastExpr().getExpression().toString().charAt(1));
-            case "float":
-                return context.getBuilder().appendFloatPrimitive(Float.parseFloat(expr.asCastExpr().getExpression().toString()));
-            case "short":
-                return context.getBuilder().appendShortPrimitive(Short.parseShort(expr.asCastExpr().getExpression().toString()));
-            case "byte":
-                return context.getBuilder().appendBytePrimitive(Byte.parseByte(expr.asCastExpr().getExpression().toString()));
-            default:
-                
-        	}
+        	long longValue = (long) operator * Long.parseLong(expr.toString().substring(0, exprToString.length() -1 ));
+        	
+        	VariableReference vr = context.getBuilder().appendLongPrimitive(longValue);
+        	
+        	return vr;
         }
-     
-        
-		
+
 		if (expr.isIntegerLiteralExpr()) {
-        	
-        	
+				
+				
                 int intValue = operator * Integer.parseInt(expr.toString());
                 
                 
@@ -190,7 +192,6 @@ public class CodeTestVisitor {
         
         if (expr.isDoubleLiteralExpr()){
         	
-        	
 
         	double doubleValue = operator * Double.parseDouble(expr.toString());
         	
@@ -232,27 +233,80 @@ public class CodeTestVisitor {
         if (expr.isFieldAccessExpr()) {
         	
         	
-            FieldAccessExpr fieldAccessExpr = expr.asFieldAccessExpr();
-            
-            Field javaField = getFieldByExpression(fieldAccessExpr);
-                       
-                    if (fieldAccessExpr.resolve().asField().isStatic()) {
-                    	
-	                    VariableReference vr = context.getBuilder().appendStaticFieldStmt(javaField);
-	                    return vr;
-	                    
-                    }
-                    else {
-                    	
-                   
-                    	VariableReference vrReciver = getReferenceByExpression(fieldAccessExpr, context);
-                    	
-                    	
-                    	VariableReference vr = context.getBuilder().appendFieldStmt(vrReciver, javaField);
+        	ResolvedType type = expr.asFieldAccessExpr().resolve().getType();
+        	
+        	
+        	if (type.isReferenceType()  && type.asReferenceType().getTypeDeclaration().get().isEnum()) {
+        		
+        		String enumClassName  = type.asReferenceType().getQualifiedName();
+        		
+        		String enumPackageName = type.asReferenceType().getTypeDeclaration().get().getPackageName();
+        		
+        		String enumConstantName = expr.asFieldAccessExpr().getNameAsString();
+        		
+        		String binaryName = "";
+        		
+        		if (enumPackageName == null || enumPackageName.isEmpty()) {
+        	         binaryName = enumClassName.replace('.', '$');
+        	    }
+        		
+        		else {
+            	    String afterPkg = enumClassName.substring(enumPackageName.length() + 1);
+            	    binaryName = enumPackageName + "." + afterPkg.replace('.', '$');
+        		}
+        		
+        		
+        		
+        		
+        		
+        		enumClassName = enumClassName.substring(0, enumClassName.length() - 4);
+        		
+        		
+        		
+        		
+        		Class<?> enumClass = null;
+				try {
+					enumClass = Class.forName(binaryName);
+				} catch (ClassNotFoundException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				
+        		
+        		Enum<?> enumValue = Enum.valueOf((Class<Enum>) enumClass, enumConstantName);
+
+        		
+        		VariableReference vr = context.getBuilder().appendEnumPrimitive(enumValue);
+        		return vr;
+        		
+        		
+        		
+        	}
+        	
+        	else {
+        		
+                FieldAccessExpr fieldAccessExpr = expr.asFieldAccessExpr();
+                
+                Field javaField = getFieldByExpression(fieldAccessExpr);
+                           
+                        if (fieldAccessExpr.resolve().asField().isStatic()) {
+                        	
+                        VariableReference vr = context.getBuilder().appendStaticFieldStmt(javaField);
                         return vr;
+                        
+                        }
+                        else {
+                        	
+                       
+                        	VariableReference vrReciver = getReferenceByExpression(fieldAccessExpr, context);
+                        	
+                        	
+                        	VariableReference vr = context.getBuilder().appendFieldStmt(vrReciver, javaField);
+                            return vr;
 
-                    }
+                        }
 
+            }
         }
         
         
@@ -362,13 +416,13 @@ public class CodeTestVisitor {
 					
 					    TestCaseBuilder builder = new TestCaseBuilder();
 					    context.setBuilder(builder);
-					    context.setTracker (new VariabiliTracker());
+					    context.setTracker(new VariabiliTracker());
 					    
-					    System.out.println("Prima del super nella Method Declaration");
-		
 						super.visit(md, context);
 						
 						context.add(builder.getDefaultTestCase());
+						
+						
 					
 				}
 				
@@ -385,11 +439,13 @@ public class CodeTestVisitor {
 		            String name = vd.getNameAsString();
 		            int operator = 1;
 		            
-		            System.out.println("Inizializzatore :" + initializer);
 		            
-		            
-		            
-		            
+		            if (expr.isCastExpr()) {
+		        		
+			        	expr = expr.asCastExpr().getExpression();
+				
+		            }
+
 		            
 		            if (expr.isUnaryExpr() && expr.asUnaryExpr().getOperator() == UnaryExpr.Operator.MINUS || expr.isEnclosedExpr()) {
 		            	
@@ -397,8 +453,9 @@ public class CodeTestVisitor {
 		            	if (expr.isEnclosedExpr())	{
 		            		
 		            		
-		            		
-		            		expr = expr.asEnclosedExpr().getInner();
+		            		while(expr.isEnclosedExpr()) {
+		            			expr = expr.asEnclosedExpr().getInner();
+		            		}
 		            		
 		            		
 		            	}	            	
@@ -584,27 +641,80 @@ public class CodeTestVisitor {
 		            if (expr.isFieldAccessExpr()) {
 		            	
 		            	
-		                FieldAccessExpr fieldAccessExpr = expr.asFieldAccessExpr();
-		                
-		                Field javaField = getFieldByExpression(fieldAccessExpr);
-		                           
-	                            if (fieldAccessExpr.resolve().asField().isStatic()) {
-	                            	
-	                            VariableReference vr = context.getBuilder().appendStaticFieldStmt(javaField);
-	                            context.getTracker().aggiungiVariabile(name, vr);
-	                            
-	                            }
-	                            else {
-	                            	
-	                           
-	                            	VariableReference vrReciver = getReferenceByExpression(fieldAccessExpr, context);
-	                            	
-	                            	
-	                            	VariableReference vr = context.getBuilder().appendFieldStmt(vrReciver, javaField);
+		            	ResolvedType type = expr.asFieldAccessExpr().resolve().getType();
+		            	
+		            	
+		            	if (type.isReferenceType()  && type.asReferenceType().getTypeDeclaration().get().isEnum()) {
+		            		
+		            		String enumClassName  = type.asReferenceType().getQualifiedName();
+		            		
+		            		String enumPackageName = type.asReferenceType().getTypeDeclaration().get().getPackageName();
+		            		
+		            		String enumConstantName = expr.asFieldAccessExpr().getNameAsString();
+		            		
+		            		String binaryName = "";
+		            		
+		            		if (enumPackageName == null || enumPackageName.isEmpty()) {
+		            	         binaryName = enumClassName.replace('.', '$');
+		            	    }
+		            		
+		            		else {
+			            	    String afterPkg = enumClassName.substring(enumPackageName.length() + 1);
+			            	    binaryName = enumPackageName + "." + afterPkg.replace('.', '$');
+		            		}
+		            		
+		            		
+		            		
+		            		
+		            		
+		            		enumClassName = enumClassName.substring(0, enumClassName.length() - 4);
+		            		
+		            		
+		            		
+		            		
+		            		Class<?> enumClass = null;
+							try {
+								enumClass = Class.forName(binaryName);
+							} catch (ClassNotFoundException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
+							
+		            		
+		            		Enum<?> enumValue = Enum.valueOf((Class<Enum>) enumClass, enumConstantName);
+
+		            		
+		            		VariableReference vr = context.getBuilder().appendEnumPrimitive(enumValue);
+		            		context.getTracker().aggiungiVariabile(name, vr);
+		            		
+		            		
+		            		
+		            	}
+		            	
+		            	else {
+		            		
+			                FieldAccessExpr fieldAccessExpr = expr.asFieldAccessExpr();
+			                
+			                Field javaField = getFieldByExpression(fieldAccessExpr);
+			                           
+		                            if (fieldAccessExpr.resolve().asField().isStatic()) {
+		                            	
+		                            VariableReference vr = context.getBuilder().appendStaticFieldStmt(javaField);
 		                            context.getTracker().aggiungiVariabile(name, vr);
-
-	                            }
-
+		                            
+		                            }
+		                            else {
+		                            	
+		                           
+		                            	VariableReference vrReciver = getReferenceByExpression(fieldAccessExpr, context);
+		                            	
+		                            	
+		                            	VariableReference vr = context.getBuilder().appendFieldStmt(vrReciver, javaField);
+			                            context.getTracker().aggiungiVariabile(name, vr);
+	
+		                            }
+	
+			            }
 		            }
 		            
 		            
@@ -612,7 +722,7 @@ public class CodeTestVisitor {
 		            	
 		            	context.setVariableName(name);
 		            	
-		            	System.out.println(name);
+		            	
 		            	
 		            	
 		            	
@@ -692,15 +802,13 @@ public class CodeTestVisitor {
 							return;
 						}
 						
-						System.out.println(ace);
+						
 			
 					    // Prima otteniamo il numero di livelli (dimensioni dell'array)
 					    int dimensions = ace.getLevels().size();
 			
 					    // Ora risolviamo l'element type
 					    ResolvedType resolvedType = ace.getElementType().resolve();
-					    
-					    System.out.println("Tipo risolto array:" + resolvedType);
 			
 					    java.lang.reflect.Type typeForEvoSuite = null;
 			
@@ -788,28 +896,105 @@ public class CodeTestVisitor {
 	            		context.getBuilder().appendAssignment(vrReciver, javaField, vrSrc, javaFieldSrc);
 	            		
 	            	}
+	            	
+	            	else {
+	            		
+	            		VariableReference vrValue = appendPrimitiveStmt(ae.getValue(), context);
+                    	
+		            	context.getBuilder().appendAssignment(vrReciver, javaField, vrValue);
+	            		
+	            	}
 	  
 		           
 		        }
 		        
 		        else if (ae.getTarget().isArrayAccessExpr()) {
 		        	
-		        	String arrayName = ae.getTarget().asArrayAccessExpr().getName().toString();
+		        	
+		        	
+		        	Expression expr = ae.getTarget().asArrayAccessExpr().getName();
+		        	
+		        	while(expr.isArrayAccessExpr()) {
+		        	
+		        		expr = expr.asArrayAccessExpr().getName();
+		        		
+		        		
+		        		
+		        	}
 		        	
 		        	
 		        	
+		        	
+		        	String arrayName = expr.toString();
+		        	
+		        	
+
 		        	ArrayReference ar = (ArrayReference) context.getTracker().getRefernce(arrayName);
+
 		        	
-		        	int index = Integer.parseInt(ae.getTarget().asArrayAccessExpr().getIndex().toString());
+		        	List<Integer> indices = new ArrayList<>();
+		            ArrayAccessExpr current = ae.getTarget().asArrayAccessExpr();
+
+		            while (true) {
+		                // Aggiunge l'indice attuale
+		                indices.add(0, Integer.parseInt(current.getIndex().toString())); // 0 per mantenerli nell'ordine originale
+
+		                // Se il "name" è ancora un ArrayAccessExpr, continuiamo
+		                if (current.getName() instanceof ArrayAccessExpr) {
+		                    current = (ArrayAccessExpr) current.getName();
+		                } else {
+		                    break;
+		                }
+		            }
+		            
+		            int index = -1;
+		            
+		            
+		            
+		            if (indices.size() == 1) {
+		            	
+		            	index = indices.get(0);
+		            }
+		            
+		            
 		        	
-		        	if (ae.getValue().isNameExpr()) {
+		        	if (ae.getValue().isNameExpr() && index == -1) {
 		        		
 		        		String varNameReciver = ae.getValue().asNameExpr().getNameAsString();
 		        		
 		        		VariableReference vrReciver = context.getTracker().getRefernce(varNameReciver);
 		        		 
-		        		context.getBuilder().appendAssignment(ar, index, vrReciver); 
+		        		context.getBuilder().appendAssignment(ar, indices, vrReciver); 
 		        		 		
+		        		
+		        	}
+		        	
+		        	else if(ae.getValue().isNameExpr()) {
+		        		
+		        		String varNameReciver = ae.getValue().asNameExpr().getNameAsString();
+		        		
+		        		VariableReference vrReciver = context.getTracker().getRefernce(varNameReciver);
+		        		 
+		        		context.getBuilder().appendAssignment(ar, index, vrReciver);
+		        		
+		        	}
+		        	
+		        	else if (index == -1){
+		        		
+		        		
+		        		
+		        		VariableReference vrValue = appendPrimitiveStmt(ae.getValue(), context);
+	
+		            	context.getBuilder().appendAssignment(ar, indices, vrValue); 
+		        		
+		        		
+		        	}
+		        	
+		        	else {
+		        		
+		        		VariableReference vrValue = appendPrimitiveStmt(ae.getValue(), context);
+                    	
+		            	context.getBuilder().appendAssignment(ar, index, vrValue); 
 		        		
 		        	}
 		        	
@@ -1052,9 +1237,6 @@ public class CodeTestVisitor {
 		            else {
 		            	
 		            	context.getTracker().aggiungiVariabile(context.getVariableName(), vr);
-		            	
-		            	
-		            
 		            
 		            }
 		        }
@@ -1082,7 +1264,6 @@ public class CodeTestVisitor {
 		    		
 		         Expression scope = scopeOpt.get();
 		         
-		         System.out.println("Scope call method:" + scope);
 		         
 		         
 
@@ -1104,7 +1285,7 @@ public class CodeTestVisitor {
 		    	
 		    	 vrReciver = context.getTracker().getRefernce(variableName);
 		    	 
-		    	 System.out.println(vrReciver);
+		    	 
 		    	
 		    	}
 		    	else {
@@ -1289,11 +1470,8 @@ public class CodeTestVisitor {
 					e.printStackTrace();
 				}
 	            
-	            System.out.println(method);
-	            
 	            VariableReference vr = context.getBuilder().appendMethod(vrReciver, method, parametersVr);
 	            
-	            System.out.println(vr);
 	            
 	            
 	            if (!context.getVariableName().equals("")) {
@@ -1316,11 +1494,7 @@ public class CodeTestVisitor {
 			
 			
 		}
-		
-		
-		
-		
-		
+
 		
 
 		private static class ArrayCreationLevelVisitor extends VoidVisitorAdapter <ArrayList<Integer>> {
@@ -1328,10 +1502,6 @@ public class CodeTestVisitor {
 			
 			@Override
 			public void visit(ArrayCreationLevel acl, ArrayList<Integer> lengths) {
-				
-				
-			
-				
 				
 				int length = Integer.parseInt(acl.getDimension().get().toString());
 				
@@ -1380,8 +1550,6 @@ public class CodeTestVisitor {
 	    List<TestCase> evoSuiteTestCases = new ArrayList();
 	    
 	    VisitorContext context = new VisitorContext(evoSuiteTestCases);
-	    
-	    System.out.println("Prima della visit nel main");
 	    
 	    visitor.visit(cu, context);
 	    

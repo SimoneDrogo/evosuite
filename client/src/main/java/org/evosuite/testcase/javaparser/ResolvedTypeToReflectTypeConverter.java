@@ -10,7 +10,7 @@ public class ResolvedTypeToReflectTypeConverter {
 
     public static Type toReflectType(ResolvedType resolvedType) throws ClassNotFoundException {
     	
-    	System.out.println("Sono arrivato alla classe statica");
+    	
 
         if (resolvedType.isPrimitive()) {
             return mapPrimitive(resolvedType.asPrimitive());
@@ -21,7 +21,7 @@ public class ResolvedTypeToReflectTypeConverter {
         } 
         else if (resolvedType.isReferenceType()) {
         	
-        	System.out.println("Sono nel branch ReferenceType");
+        	
         	
         	
             return mapReference(resolvedType.asReferenceType());
@@ -67,7 +67,7 @@ public class ResolvedTypeToReflectTypeConverter {
     private static Type mapReference(ResolvedReferenceType referenceType) throws ClassNotFoundException {
     	
     	
-    	System.out.println("Parametri dei null:  " + referenceType.typeParametersValues());
+    	
     	
     	
     	
