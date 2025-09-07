@@ -5,7 +5,7 @@ public class FieldProva {
 	
 	private int x;
 	
-	private double y;
+	private Double y;
 	
 	private Field2 field;
 	
@@ -13,7 +13,7 @@ public class FieldProva {
 		
 		 this.x = x;
 		 
-		 this.y = y;
+		 this.y = new Double(y);
 		 
 		 this.field = new Field2();
 		
@@ -22,6 +22,17 @@ public class FieldProva {
 	public int doubleInt (int n) {
 		
 		return 2*n;
+	}
+	
+	public void setY(double x) {
+		
+		this.y =  new Double(x);
+	}
+	
+	public Double getY(){
+		
+		return this.y;
+		
 	}
 	
 	public void factorY (double factor) {

@@ -1,5 +1,7 @@
 package org.evosuite.samples;
 
+import static org.junit.Assert.assertEquals;
+
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -12,6 +14,7 @@ import org.evosuite.testcase.variable.VariableReference;
 import org.junit.Test;
 
 import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeSolver;
+
 
 
 public class ProvaVuota {
@@ -77,7 +80,27 @@ public class ProvaVuota {
 		
 		FieldProva catena = new FieldProva(f, g);
 		
-		catena.getField2().getY();
+		catena.getField2().getY().intValue();
+		
+		catena.getField2().getY().hashCode();
+		
+		catena.getY().hashCode();
+		
+		catena.setY(pi);
+		
+		
+		
+		catena.getY().hashCode();
+		
+		Field2 f2 = catena.getField2();
+		
+		Integer inter = f2.getY();
+		
+		int hash = inter.hashCode();
+		
+		FieldProva catena1 = new FieldProva (hash, 2.1);
+		
+		catena1.getField2().getY().hashCode();
 		
 		FieldProva provaField = new FieldProva(f, pi);
 		
@@ -145,5 +168,17 @@ public class ProvaVuota {
 		
 		
 	}
+	
+	@Test(timeout = 4000)
+	  public void test04()  throws Throwable  {
+	      EvoComplex evoComplex0 = new EvoComplex(1, (String) null);
+	      Double double0 = new Double(1);
+	      Long long0 = new Long(1);
+	      evoComplex0.ingest((String) null, double0, long0);
+	      evoComplex0.ingest((String) null, double0, long0);
+	      evoComplex0.ingest((String) null, double0, long0);
+	      String string0 = evoComplex0.explain("");
+	      assertEquals("User=<anon> phase=WARMUP mode=MEAN decay=0.960 window=8 score=0.115 | n=3 recentVol=0.000 next\u22480.115", string0);
+	  }
 
 }

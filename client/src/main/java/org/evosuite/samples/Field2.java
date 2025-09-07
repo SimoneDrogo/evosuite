@@ -4,10 +4,10 @@ public class Field2 {
 	
 	public int x = 0;
 	
-	private int y = 42;
+	private Integer y = 42;
 	
 	
-	public int getY() {
+	public Integer getY() {
 		
 		return this.y;
 		
