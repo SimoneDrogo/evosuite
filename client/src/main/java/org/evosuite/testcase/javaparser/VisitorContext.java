@@ -19,6 +19,8 @@ public class VisitorContext {
 	public VisitorContext(List<TestCase> evoSuiteTestCases) {
 
 		this.evoSuiteTestCases = evoSuiteTestCases;
+		variableName = "";
+		builder = null;
 
 	}
 
@@ -33,7 +35,12 @@ public class VisitorContext {
 	}
 
 	public TestCaseBuilder getBuilder() {
-		return builder;
+		if (builder !=null)
+			return builder;
+		else {
+			System.out.println("Sono else context builder");
+			return null;
+		}
 	}
 
 	public void setBuilder(TestCaseBuilder builder) {

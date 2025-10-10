@@ -66,7 +66,7 @@ import org.evosuite.testcase.variable.VariableReferenceImpl;
 
 public class CodeTestVisitor {
 
-	private static final String FILE_PATH = "src/main/java/org/evosuite/samples/EvoComplex_ESTest.java";
+	private static final String FILE_PATH = "src/main/java/org/evosuite/samples/Vuotismo.java";
 
 	private static void addJarsFromFolder(CombinedTypeSolver typeSolver, File jarFolder) {
 		if (jarFolder.exists() && jarFolder.isDirectory()) {
@@ -91,6 +91,8 @@ public class CodeTestVisitor {
 	private static VariableReference appendPrimitiveStmt(Expression expr, VisitorContext context) {
 
 		TestVisitor visitor = new TestVisitor();
+		
+		
 
 		int operator = 1;
 
@@ -268,16 +270,23 @@ public class CodeTestVisitor {
 		}
 
 		if (expr.isObjectCreationExpr()) {
+			
+			context.setVariableName("");
 
 			visitor.visit(expr.asObjectCreationExpr(), context);
-
+			
+			
+			context.setVariableName("");
+					
 			return context.getTracker().getReference(expr.asObjectCreationExpr().toString());
+			
+			
 
 		}
 
 		if (expr.isMethodCallExpr()) {
 
-			context.setVariableName("methodParam");
+			context.setVariableName("");
 
 			visitor.visit(expr.asMethodCallExpr(), context);
 
@@ -389,6 +398,8 @@ public class CodeTestVisitor {
 			if (paramType.isReferenceType()) {
 				className = paramType.asReferenceType().getQualifiedName();
 			} else {
+				
+				
 
 				className = "java.lang.Object";
 			}
@@ -446,6 +457,8 @@ public class CodeTestVisitor {
 				super.visit(md, context);
 
 				context.add(builder.getDefaultTestCase());
+				
+				//System.out.println(builder.getDefaultTestCase());
 
 			}
 
@@ -454,7 +467,7 @@ public class CodeTestVisitor {
 		@Override
 		public void visit(VariableDeclarator vd, VisitorContext context) {
 
-			if (vd.getInitializer().isPresent()) {
+			if (vd.getInitializer().isPresent() && context.getBuilder()!=null) {
 
 				Expression expr = vd.getInitializer().get();
 				String initializer = expr.toString();
@@ -705,7 +718,7 @@ public class CodeTestVisitor {
 
 			}
 
-			else {
+			else if (context.getBuilder()!=null){
 
 				String type = vd.getType().toString();
 
@@ -741,47 +754,38 @@ public class CodeTestVisitor {
 		@Override
 		public void visit(ArrayCreationExpr ace, VisitorContext context) {
 
-			int dimensions = ace.getLevels().size();
+			if (context.getBuilder() != null) {
+				int dimensions = ace.getLevels().size();
+				ResolvedType resolvedType = ace.getElementType().resolve();
+				java.lang.reflect.Type typeForEvoSuite = null;
+				try {
+					typeForEvoSuite = ResolvedTypeToReflectTypeConverter.toReflectType(resolvedType);
+				} catch (ClassNotFoundException e) {
+					e.printStackTrace();
+					typeForEvoSuite = Object.class;
+				}
+				for (int i = 0; i < dimensions; i++) {
+					typeForEvoSuite = java.lang.reflect.Array.newInstance((Class<?>) typeForEvoSuite, 0).getClass();
+				}
+				ArrayList<Integer> lengths = new ArrayList();
+				ArrayCreationLevelVisitor creationVisitor = new ArrayCreationLevelVisitor();
+				creationVisitor.visit(ace, lengths);
+				Object[] arrayOggetti = lengths.toArray();
+				int[] arrayPrimitivi = new int[arrayOggetti.length];
+				for (int i = 0; i < arrayOggetti.length; i++) {
+					arrayPrimitivi[i] = Integer.parseInt(arrayOggetti[i].toString());
+				}
+				ArrayReference ar = context.getBuilder().appendArrayStmt(typeForEvoSuite, arrayPrimitivi);
+				if (context.getVariableName().equals("")) {
 
-			ResolvedType resolvedType = ace.getElementType().resolve();
+					context.getTracker().aggiungiVariabile(ace.toString(), ar);
+				}
 
-			java.lang.reflect.Type typeForEvoSuite = null;
+				else {
 
-			try {
-				typeForEvoSuite = ResolvedTypeToReflectTypeConverter.toReflectType(resolvedType);
-			} catch (ClassNotFoundException e) {
-				e.printStackTrace();
-				typeForEvoSuite = Object.class;
-			}
+					context.getTracker().aggiungiVariabile(context.getVariableName(), ar);
 
-			for (int i = 0; i < dimensions; i++) {
-				typeForEvoSuite = java.lang.reflect.Array.newInstance((Class<?>) typeForEvoSuite, 0).getClass();
-			}
-
-			ArrayList<Integer> lengths = new ArrayList();
-
-			ArrayCreationLevelVisitor creationVisitor = new ArrayCreationLevelVisitor();
-
-			creationVisitor.visit(ace, lengths);
-
-			Object[] arrayOggetti = lengths.toArray();
-
-			int[] arrayPrimitivi = new int[arrayOggetti.length];
-			for (int i = 0; i < arrayOggetti.length; i++) {
-				arrayPrimitivi[i] = Integer.parseInt(arrayOggetti[i].toString());
-			}
-
-			ArrayReference ar = context.getBuilder().appendArrayStmt(typeForEvoSuite, arrayPrimitivi);
-
-			if (context.getVariableName().equals("")) {
-
-				context.getTracker().aggiungiVariabile(ace.toString(), ar);
-			}
-
-			else {
-
-				context.getTracker().aggiungiVariabile(context.getVariableName(), ar);
-
+				} 
 			}
 
 		}
@@ -789,201 +793,321 @@ public class CodeTestVisitor {
 		@Override
 		public void visit(AssignExpr ae, VisitorContext context) {
 
-			Expression target = ae.getTarget();
+			if (context.getBuilder() !=null) {
+				Expression target = ae.getTarget();
+				String varName = "";
+				if (target.isNameExpr()) {
+					varName = target.asNameExpr().getNameAsString();
 
-			String varName = "";
+				} else if (target.isFieldAccessExpr()) {
 
-			if (target.isNameExpr()) {
-				varName = target.asNameExpr().getNameAsString();
+					FieldAccessExpr fieldAccessExpr = ae.getTarget().asFieldAccessExpr();
 
-			} else if (target.isFieldAccessExpr()) {
+					Field javaField = getFieldByExpression(fieldAccessExpr);
 
-				FieldAccessExpr fieldAccessExpr = ae.getTarget().asFieldAccessExpr();
+					VariableReference vrReciver = getReferenceByExpression(fieldAccessExpr, context);
 
-				Field javaField = getFieldByExpression(fieldAccessExpr);
+					if (ae.getValue().isNameExpr()) {
 
-				VariableReference vrReciver = getReferenceByExpression(fieldAccessExpr, context);
+						VariableReference vrValue = context.getTracker()
+								.getReference(ae.getValue().asNameExpr().getNameAsString());
 
-				if (ae.getValue().isNameExpr()) {
-
-					VariableReference vrValue = context.getTracker()
-							.getReference(ae.getValue().asNameExpr().getNameAsString());
-
-					context.getBuilder().appendAssignment(vrReciver, javaField, vrValue);
-				}
-
-				else if (ae.getValue().isFieldAccessExpr()) {
-
-					FieldAccessExpr fieldAccessExprSrc = ae.getValue().asFieldAccessExpr();
-
-					Field javaFieldSrc = getFieldByExpression(fieldAccessExprSrc);
-
-					VariableReference vrSrc = getReferenceByExpression(fieldAccessExprSrc, context);
-
-					context.getBuilder().appendAssignment(vrReciver, javaField, vrSrc, javaFieldSrc);
-
-				}
-
-				else {
-
-					VariableReference vrValue = appendPrimitiveStmt(ae.getValue(), context);
-
-					context.getBuilder().appendAssignment(vrReciver, javaField, vrValue);
-
-				}
-
-			}
-
-			else if (ae.getTarget().isArrayAccessExpr()) {
-
-				Expression expr = ae.getTarget().asArrayAccessExpr().getName();
-
-				while (expr.isArrayAccessExpr()) {
-
-					expr = expr.asArrayAccessExpr().getName();
-
-				}
-
-				String arrayName = expr.toString();
-
-				ArrayReference ar = (ArrayReference) context.getTracker().getReference(arrayName);
-
-				List<Integer> indices = new ArrayList<>();
-				ArrayAccessExpr current = ae.getTarget().asArrayAccessExpr();
-
-				while (true) {
-
-					indices.add(0, Integer.parseInt(current.getIndex().toString()));
-
-					if (current.getName() instanceof ArrayAccessExpr) {
-						current = (ArrayAccessExpr) current.getName();
-					} else {
-						break;
+						context.getBuilder().appendAssignment(vrReciver, javaField, vrValue);
 					}
-				}
 
-				int index = -1;
+					else if (ae.getValue().isFieldAccessExpr()) {
 
-				if (indices.size() == 1) {
+						FieldAccessExpr fieldAccessExprSrc = ae.getValue().asFieldAccessExpr();
 
-					index = indices.get(0);
-				}
+						Field javaFieldSrc = getFieldByExpression(fieldAccessExprSrc);
 
-				if (ae.getValue().isNameExpr() && index == -1) {
+						VariableReference vrSrc = getReferenceByExpression(fieldAccessExprSrc, context);
 
-					String varNameReciver = ae.getValue().asNameExpr().getNameAsString();
+						context.getBuilder().appendAssignment(vrReciver, javaField, vrSrc, javaFieldSrc);
 
-					VariableReference vrReciver = context.getTracker().getReference(varNameReciver);
+					}
 
-					context.getBuilder().appendAssignment(ar, indices, vrReciver);
+					else {
 
-				}
+						VariableReference vrValue = appendPrimitiveStmt(ae.getValue(), context);
 
-				else if (ae.getValue().isNameExpr()) {
+						context.getBuilder().appendAssignment(vrReciver, javaField, vrValue);
 
-					String varNameReciver = ae.getValue().asNameExpr().getNameAsString();
-
-					VariableReference vrReciver = context.getTracker().getReference(varNameReciver);
-
-					context.getBuilder().appendAssignment(ar, index, vrReciver);
+					}
 
 				}
 
-				else if (index == -1) {
+				else if (ae.getTarget().isArrayAccessExpr()) {
 
-					VariableReference vrValue = appendPrimitiveStmt(ae.getValue(), context);
+					Expression expr = ae.getTarget().asArrayAccessExpr().getName();
 
-					context.getBuilder().appendAssignment(ar, indices, vrValue);
+					while (expr.isArrayAccessExpr()) {
+
+						expr = expr.asArrayAccessExpr().getName();
+
+					}
+
+					String arrayName = expr.toString();
+
+					ArrayReference ar = (ArrayReference) context.getTracker().getReference(arrayName);
+
+					List<Integer> indices = new ArrayList<>();
+					ArrayAccessExpr current = ae.getTarget().asArrayAccessExpr();
+
+					while (true) {
+
+						indices.add(0, Integer.parseInt(current.getIndex().toString()));
+
+						if (current.getName() instanceof ArrayAccessExpr) {
+							current = (ArrayAccessExpr) current.getName();
+						} else {
+							break;
+						}
+					}
+
+					int index = -1;
+
+					if (indices.size() == 1) {
+
+						index = indices.get(0);
+					}
+
+					if (ae.getValue().isNameExpr() && index == -1) {
+
+						String varNameReciver = ae.getValue().asNameExpr().getNameAsString();
+
+						VariableReference vrReciver = context.getTracker().getReference(varNameReciver);
+
+						context.getBuilder().appendAssignment(ar, indices, vrReciver);
+
+					}
+
+					else if (ae.getValue().isNameExpr()) {
+
+						String varNameReciver = ae.getValue().asNameExpr().getNameAsString();
+
+						VariableReference vrReciver = context.getTracker().getReference(varNameReciver);
+
+						context.getBuilder().appendAssignment(ar, index, vrReciver);
+
+					}
+
+					else if (index == -1) {
+
+						VariableReference vrValue = appendPrimitiveStmt(ae.getValue(), context);
+
+						context.getBuilder().appendAssignment(ar, indices, vrValue);
+
+					}
+
+					else {
+
+						VariableReference vrValue = appendPrimitiveStmt(ae.getValue(), context);
+
+						context.getBuilder().appendAssignment(ar, index, vrValue);
+
+					}
 
 				}
+				VariableReference vrReciver = context.getTracker().getReference(varName);
+				if (ae.getValue().isArrayAccessExpr()) {
 
-				else {
+					String arrayName = ae.getValue().asArrayAccessExpr().getName().toString();
 
-					VariableReference vrValue = appendPrimitiveStmt(ae.getValue(), context);
+					ArrayReference ar = (ArrayReference) context.getTracker().getReference(arrayName);
 
-					context.getBuilder().appendAssignment(ar, index, vrValue);
+					int index = Integer.parseInt(ae.getValue().asArrayAccessExpr().getIndex().toString());
 
-				}
-
-			}
-
-			VariableReference vrReciver = context.getTracker().getReference(varName);
-
-			if (ae.getValue().isArrayAccessExpr()) {
-
-				String arrayName = ae.getValue().asArrayAccessExpr().getName().toString();
-
-				ArrayReference ar = (ArrayReference) context.getTracker().getReference(arrayName);
-
-				int index = Integer.parseInt(ae.getValue().asArrayAccessExpr().getIndex().toString());
-
-				context.getBuilder().appendAssignment(vrReciver, ar, index);
+					context.getBuilder().appendAssignment(vrReciver, ar, index);
+				} 
 			}
 
 		}
 
 		@Override
 		public void visit(ObjectCreationExpr oc, VisitorContext context) {
+			
+			String methodVariableName  = "";
+			
+			if (!context.getVariableName().equals("")) {
+				
+				methodVariableName = context.getVariableName();
+			}
 
-			if (oc.getType().getNameAsString().equals("File")) {
-				if (!oc.getArguments().isEmpty()) {
-					Expression arg = oc.getArgument(0);
+			if (context.getBuilder() != null) {
+				if (oc.getType().getNameAsString().equals("File")) {
+					if (!oc.getArguments().isEmpty()) {
+						Expression arg = oc.getArgument(0);
 
-					if (arg.isStringLiteralExpr()) {
-						StringLiteralExpr strExpr = arg.asStringLiteralExpr();
-						String path = strExpr.getValue();
+						if (arg.isStringLiteralExpr()) {
+							StringLiteralExpr strExpr = arg.asStringLiteralExpr();
+							String path = strExpr.getValue();
 
-						EvoSuiteFile file = new EvoSuiteFile(path);
-						context.getBuilder().appendFileNamePrimitive(file);
-					}
-
-					if (arg.isNameExpr()) {
-
-						VariableReference vrFile = context.getTracker()
-								.getReference(arg.asNameExpr().getNameAsString());
-
-						TestCase testCase = context.getBuilder().getDefaultTestCase();
-
-						Statement stmt = testCase.getStatement(vrFile.getStPosition());
-
-						if (stmt instanceof PrimitiveStatement<?>) {
-							Object value = ((PrimitiveStatement<?>) stmt).getValue();
-
-							if (value instanceof String) {
-								String stringValue = (String) value;
-
-								String path = stringValue;
-
-								EvoSuiteFile file = new EvoSuiteFile(path);
-								context.getBuilder().appendFileNamePrimitive(file);
-
-							} else {
-								System.out.println("La variabile non contiene una stringa, ma: " + value);
-							}
-						} else {
-							System.out.println("Lo statement non è una stringa primitiva");
+							EvoSuiteFile file = new EvoSuiteFile(path);
+							context.getBuilder().appendFileNamePrimitive(file);
 						}
 
+						if (arg.isNameExpr()) {
+
+							VariableReference vrFile = context.getTracker()
+									.getReference(arg.asNameExpr().getNameAsString());
+
+							TestCase testCase = context.getBuilder().getDefaultTestCase();
+
+							Statement stmt = testCase.getStatement(vrFile.getStPosition());
+
+							if (stmt instanceof PrimitiveStatement<?>) {
+								Object value = ((PrimitiveStatement<?>) stmt).getValue();
+
+								if (value instanceof String) {
+									String stringValue = (String) value;
+
+									String path = stringValue;
+
+									EvoSuiteFile file = new EvoSuiteFile(path);
+									context.getBuilder().appendFileNamePrimitive(file);
+
+								} else {
+									System.out.println("La variabile non contiene una stringa, ma: " + value);
+								}
+							} else {
+								System.out.println("Lo statement non è una stringa primitiva");
+							}
+
+						}
 					}
+
+				} else {
+
+					ResolvedConstructorDeclaration resolved = oc.resolve();
+					String qualifiedName = resolved.declaringType().getQualifiedName();
+
+					Class<?> clazz = null;
+
+					try {
+						clazz = Class.forName(qualifiedName);
+					} catch (ClassNotFoundException e) {
+						e.printStackTrace();
+					}
+
+					NodeList<Expression> parameters = oc.getArguments();
+					VariableReference[] parametersVr = new VariableReference[resolved.getNumberOfParams()];
+					List<Class<?>> paramTypes = new ArrayList<>();
+
+					int i = 0;
+					for (Expression parameter : parameters) {
+
+						VariableReference vr = null;
+
+						if (!parameter.isNameExpr() && parameter != null) {
+
+							vr = appendPrimitiveStmt(parameter, context);
+
+						}
+
+						else if (parameter != null) {
+
+							vr = context.getTracker().getReference(parameter.asNameExpr().getNameAsString());
+
+						}
+
+						parametersVr[i] = vr;
+
+						ResolvedType paramType = null;
+
+						if (parameter != null) {
+
+							paramType = resolved.getParam(i).getType();
+
+						}
+
+						Class<?> clazzParam = classParamByType(paramType);
+
+						if (parametersVr[i] == null) {
+
+							parametersVr[i] = context.getBuilder().appendNull(clazzParam);
+
+						}
+
+						paramTypes.add(clazzParam);
+						i++;
+					}
+
+					Constructor<?> constructor = null;
+
+					try {
+						constructor = clazz.getDeclaredConstructor(paramTypes.toArray(new Class<?>[0]));
+					} catch (NoSuchMethodException | SecurityException e) {
+						e.printStackTrace();
+					}
+
+					VariableReference vr = context.getBuilder().appendConstructor(constructor, parametersVr);
+
+					if (methodVariableName.equals("")) {
+
+						context.getTracker().aggiungiVariabile(oc.toString(), vr);
+						
+						
+
+					}
+
+					else {
+
+						context.getTracker().aggiungiVariabile(methodVariableName, vr);
+
+					}
+				} 
+			}
+		}
+
+		@Override
+		public void visit(MethodCallExpr mce, VisitorContext context) {
+			
+			String methodVariableName  = "";
+			
+			if (!context.getVariableName().equals("")) {
+				
+				methodVariableName = context.getVariableName();
+			}
+
+			if (context.getBuilder()!=null) {
+				Optional<Expression> scopeOpt = mce.getScope();
+				String variableName = "";
+				VariableReference vrReciver;
+				if (scopeOpt.isPresent()) {
+
+					Expression scope = scopeOpt.get();
+
+					if (scope.isNameExpr()) {
+						variableName = scope.asNameExpr().getNameAsString();
+
+					} else {
+
+						context.setVariableName("scope");
+
+						super.visit(mce, context);
+
+						variableName = context.getVariableName();
+
+					}
+
+					vrReciver = context.getTracker().getReference(variableName);
+
+				} else {
+
+					vrReciver = null;
 				}
-
-			} else {
-
-				ResolvedConstructorDeclaration resolved = oc.resolve();
+				ResolvedMethodDeclaration resolved = mce.resolve();
 				String qualifiedName = resolved.declaringType().getQualifiedName();
-
 				Class<?> clazz = null;
-
 				try {
 					clazz = Class.forName(qualifiedName);
 				} catch (ClassNotFoundException e) {
 					e.printStackTrace();
 				}
-
-				NodeList<Expression> parameters = oc.getArguments();
+				NodeList<Expression> parameters = mce.getArguments();
 				VariableReference[] parametersVr = new VariableReference[resolved.getNumberOfParams()];
-				List<Class<?>> paramTypes = new ArrayList<>();
-
+				List<java.lang.reflect.Type> paramTypes = new ArrayList<>();
 				int i = 0;
 				for (Expression parameter : parameters) {
 
@@ -991,7 +1115,15 @@ public class CodeTestVisitor {
 
 					if (!parameter.isNameExpr() && parameter != null) {
 
-						vr = appendPrimitiveStmt(parameter, context);
+						if (parameter.isCastExpr() && parameter.asCastExpr().getExpression().isNameExpr()) {
+
+							vr = context.getTracker().getReference(parameter.asCastExpr().getExpression().toString());
+						}
+
+						else {
+
+							vr = appendPrimitiveStmt(parameter, context);
+						}
 
 					}
 
@@ -1000,8 +1132,12 @@ public class CodeTestVisitor {
 						vr = context.getTracker().getReference(parameter.asNameExpr().getNameAsString());
 
 					}
+					
+					
 
 					parametersVr[i] = vr;
+					
+					
 
 					ResolvedType paramType = null;
 
@@ -1010,8 +1146,17 @@ public class CodeTestVisitor {
 						paramType = resolved.getParam(i).getType();
 
 					}
+					
+					
 
-					Class<?> clazzParam = classParamByType(paramType);
+					java.lang.reflect.Type clazzParam = null;
+					
+					try {
+						clazzParam = ResolvedTypeToReflectTypeConverter.toReflectType(paramType);
+					} catch (ClassNotFoundException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
 
 					if (parametersVr[i] == null) {
 
@@ -1022,166 +1167,49 @@ public class CodeTestVisitor {
 					paramTypes.add(clazzParam);
 					i++;
 				}
-
-				Constructor<?> constructor = null;
-
+				Method method = null;
 				try {
-					constructor = clazz.getDeclaredConstructor(paramTypes.toArray(new Class<?>[0]));
+					method = clazz.getMethod(mce.getNameAsString(), paramTypes.toArray(new Class<?>[0]));
 				} catch (NoSuchMethodException | SecurityException e) {
+					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
+		
+				VariableReference vr = context.getBuilder().appendMethod(vrReciver, method, parametersVr);
 
-				VariableReference vr = context.getBuilder().appendConstructor(constructor, parametersVr);
+				
+				if (!methodVariableName.equals("")) {
 
-				if (context.getVariableName().equals("")) {
+					String nomeMetodo = methodVariableName;
 
-					context.getTracker().aggiungiVariabile(oc.toString(), vr);
+					while (!context.getTracker().aggiungiVariabile(nomeMetodo, vr)) {
+
+						nomeMetodo = nomeMetodo + "I";
+					}
+
+					context.setVariableName(nomeMetodo);
 
 				}
 
 				else {
 
-					context.getTracker().aggiungiVariabile(context.getVariableName(), vr);
+					String nomeMetodo = mce.toString();
 
-				}
-			}
-		}
+					while (!context.getTracker().aggiungiVariabile(nomeMetodo, vr)) {
 
-		@Override
-		public void visit(MethodCallExpr mce, VisitorContext context) {
+						nomeMetodo = nomeMetodo + "I";
 
-			Optional<Expression> scopeOpt = mce.getScope();
-
-			String variableName = "";
-
-			VariableReference vrReciver;
-
-			if (scopeOpt.isPresent()) {
-
-				Expression scope = scopeOpt.get();
-
-				if (scope.isNameExpr()) {
-					variableName = scope.asNameExpr().getNameAsString();
-
-				} else {
-
-					context.setVariableName("scope");
-
-					super.visit(mce, context);
-
-					variableName = context.getVariableName();
-
-				}
-
-				vrReciver = context.getTracker().getReference(variableName);
-
-			} else {
-
-				vrReciver = null;
-			}
-
-			ResolvedMethodDeclaration resolved = mce.resolve();
-
-			String qualifiedName = resolved.declaringType().getQualifiedName();
-
-			Class<?> clazz = null;
-
-			try {
-				clazz = Class.forName(qualifiedName);
-			} catch (ClassNotFoundException e) {
-				e.printStackTrace();
-			}
-
-			NodeList<Expression> parameters = mce.getArguments();
-			VariableReference[] parametersVr = new VariableReference[resolved.getNumberOfParams()];
-			List<Class<?>> paramTypes = new ArrayList<>();
-
-			int i = 0;
-			for (Expression parameter : parameters) {
-
-				VariableReference vr = null;
-
-				if (!parameter.isNameExpr() && parameter != null) {
-
-					if (parameter.isCastExpr() && parameter.asCastExpr().getExpression().isNameExpr()) {
-
-						vr = context.getTracker().getReference(parameter.asCastExpr().getExpression().toString());
 					}
 
-					else {
+					context.setVariableName(nomeMetodo);
 
-						vr = appendPrimitiveStmt(parameter, context);
-					}
-
-				}
-
-				else if (parameter != null) {
-
-					vr = context.getTracker().getReference(parameter.asNameExpr().getNameAsString());
-
-				}
-
-				parametersVr[i] = vr;
-
-				ResolvedType paramType = null;
-
-				if (parameter != null) {
-
-					paramType = resolved.getParam(i).getType();
-
-				}
-
-				Class<?> clazzParam = classParamByType(paramType);
-
-				if (parametersVr[i] == null) {
-
-					parametersVr[i] = context.getBuilder().appendNull(clazzParam);
-
-				}
-
-				paramTypes.add(clazzParam);
-				i++;
-			}
-
-			Method method = null;
-
-			try {
-				method = clazz.getMethod(mce.getNameAsString(), paramTypes.toArray(new Class<?>[0]));
-			} catch (NoSuchMethodException | SecurityException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-
-			VariableReference vr = context.getBuilder().appendMethod(vrReciver, method, parametersVr);
-
-			if (!context.getVariableName().equals("")) {
-
-				String nomeMetodo = context.getVariableName();
-
-				while (!context.getTracker().aggiungiVariabile(nomeMetodo, vr)) {
-
-					nomeMetodo = nomeMetodo + "I";
-				}
-
-				context.setVariableName(nomeMetodo);
-
-			}
-
-			else {
-
-				String nomeMetodo = mce.toString();
-
-				while (!context.getTracker().aggiungiVariabile(nomeMetodo, vr)) {
-
-					nomeMetodo = nomeMetodo + "I";
-
-				}
-
+				} 
 			}
 
 		}
-
 	}
+
+	
 
 	private static class ArrayCreationLevelVisitor extends VoidVisitorAdapter<ArrayList<Integer>> {
 

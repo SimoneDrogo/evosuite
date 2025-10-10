@@ -21,6 +21,8 @@ public class ProvaVuota {
 	
 	private static enum  Day {lunedi, martedi, mercoledi, giovedi, venerdi, sabato, domenica};
 	
+	int a = 1;
+	
 	
 	
 	@Test
